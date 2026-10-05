@@ -1,0 +1,14 @@
+# Replace @member-a ... @member-d with your GitHub usernames.
+# Files here need approval from their owner before merge.
+/frontend/                         @member-a
+/server/src/engines/concern/       @member-b
+/server/src/engines/underwriting/  @member-c
+/server/src/engines/scoring/       @member-c
+/server/src/index.ts               @member-d
+/server/src/api/                   @member-d
+/server/src/pipeline.ts            @member-d
+/server/src/binding/               @member-d
+/server/src/audit/                 @member-d
+/server/scripts/                   @member-d
+# Shared contract: everyone must approve
+/shared/                           @member-a @member-b @member-c @member-d
