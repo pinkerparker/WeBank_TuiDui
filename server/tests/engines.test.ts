@@ -183,10 +183,9 @@ describe('Engine 2/3 — invariants (property tests)', () => {
 
   it('Class 3 pays a higher (or equal) RATE per ¥ of sum assured than Class 1, same product/profile', async () => {
     // Per team decision: the invariant is premium-per-¥-of-cover, not total premium —
-    // the saMax cap means Class 3 can carry a smaller total premium on a smaller sum
-    // assured while still being charged a strictly higher rate. This already holds under
-    // today's code (occupation loading multiplies the rate directly); see the "known
-    // defects" block below for the TOTAL-premium comparison, which does not hold today.
+    // Class 3's total premium is lower (¥25 vs ¥30) but it also carries half the sum
+    // assured, so a lower total for less cover is correct, not a defect. The rate itself
+    // is already higher for Class 3 (occupation loading multiplies the rate directly).
     const profile = { ...BASE_PROFILE, concern: 'ACC' as const };
     const concern = await translateConcern(profile);
     const class1 = prescreen({ ...profile, occupation: 'desk' }, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
@@ -198,16 +197,6 @@ describe('Engine 2/3 — invariants (property tests)', () => {
 });
 
 describe('Engine 2/3 — known defects (expected to fail until fix PRs; see comments)', () => {
-  it.fails('defect #2: Class 3 TOTAL premium should be >= Class 1 for the same product/profile (fix: PR #2 c/uw-rate-table, occupation-loading order)', async () => {
-    const profile = { ...BASE_PROFILE, concern: 'ACC' as const };
-    const concern = await translateConcern(profile);
-    const class1 = prescreen({ ...profile, occupation: 'desk' }, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
-    const class3 = prescreen({ ...profile, occupation: 'technician' }, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
-    // Today: class3 (¥25, saMax capped to ¥100,000) < class1 (¥30) — the 0.5 loading can't
-    // overcome the saMax cut applied to the base before the loading runs.
-    expect(class3.monthlyPremiumCny).toBeGreaterThanOrEqual(class1.monthlyPremiumCny);
-  });
-
   it.fails('defect #3a: WeProtect CI loaded premium must stay within priceMaxCny (fix: PR #2 c/uw-rate-table, priceMaxCny check)', async () => {
     const { profile } = PERSONAS.find((p) => p.id === 'P2')!;
     const concern = await translateConcern(profile);
