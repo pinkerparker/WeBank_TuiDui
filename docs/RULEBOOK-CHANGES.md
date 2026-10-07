@@ -102,15 +102,17 @@ Merge together with PR #3, or just before it.
 
 ## 5. PR Plan
 
-| # | Branch | Scope | Status |
-|---|---|---|---|
-| 0 | — | Baseline + defect confirmation + code review | ✅ Done |
-| 1 | `c/uw-edge-tests` | New tests in `server/tests/engines.test.ts` + this document | 🔵 Pushed, PR pending |
-| 2 | `c/uw-rate-table` | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ⏳ |
-| 3 | `c/scoring-contrast` | Normalised R + new weights + U by type + V guard | ⏳ |
-| 4 | `c/xai-reasons` | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ⏳ |
+All work lives on C's personal branch, **`Nat-Engine2-3`** (team convention: one branch per member), one commit series per stage.
 
-Merge in order: #3 depends on #2's premiums.
+| # | Stage | Scope | Status |
+|---|---|---|---|
+| 0 | Baseline | Baseline + defect confirmation + code review | ✅ Done |
+| 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ Done |
+| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ⏳ |
+| 3 | Scoring | Normalised R + new weights + U by type + V guard | ⏳ |
+| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ⏳ |
+
+Stages run in order: Scoring depends on the Rate table's premiums.
 
 ---
 
@@ -128,7 +130,7 @@ Merge in order: #3 depends on #2's premiums.
 - Please notify before changing the `needVector[primary] >= 0.5` contract
 
 ### D — Lead
-- Merge in order #2 → #3
+- Review the `Nat-Engine2-3` branch; stages are separated by commit for easier review
 - Review the shared PR (`RULEBOOK_VERSION` + `MOCK_RECOMMENDATION`)
 - `.github/CODEOWNERS` still has placeholders `@member-a` … `@member-d`; replace with real GitHub usernames
 - CODEOWNERS has no rule for root files (`README.md`, `CONTRIBUTING.md`); changes there need no reviewer
@@ -160,5 +162,6 @@ Merge in order: #3 depends on #2's premiums.
 
 ## Changelog
 
-- 2026-10-07 — PR #1 pushed. Class 3 rate invariant already holds, so #2 removed from defects and occupation-loading work removed from PR #2
+- 2026-10-07 — Stage 1 (Tests) moved onto `Nat-Engine2-3` per team convention (one branch per member); `c/uw-edge-tests` retired
+- 2026-10-07 — Stage 1 pushed as a standalone branch. Class 3 rate invariant already holds, so #2 removed from defects and occupation-loading work removed from PR #2
 - 2026-10-07 — Document created; Step 0 baseline and code review complete; decisions on price floor / `WAITING_120D` / `A_FLOOR` / `PRICE_ABOVE_BAND` split
