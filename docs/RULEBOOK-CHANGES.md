@@ -61,7 +61,7 @@ R'   = (R - Rmin) / (Rmax - Rmin)      // Rmax === Rmin → R' = 1
 | exclusion | `EXCL_NCD`, `EXCL_PRIOR_SURGERY` | −0.15 |
 | pricing | `LOAD_SMOKER`, `LOAD_NCD`, `MIN_PREMIUM_APPLIED`, `PRICE_ABOVE_BAND` | 0 (already reflected in A) |
 
-**Expected P1 result:** 84 / 74 / 71 / 64 → approx. **100 / 69 / 59 / 40** (actual numbers after PR #3)
+**Expected P1 result:** 84 / 74 / 71 / 64 → approx. **100 / 69 / 59 / 40** — confirmed exact, see stage 3 changelog entry
 
 > ⚠️ R' depends on the whole CATALOG. Adding or removing a product shifts every score, so catalog changes are rulebook changes too.
 
@@ -94,9 +94,56 @@ R'   = (R - Rmin) / (Rmax - Rmin)      // Rmax === Rmin → R' = 1
 | Item | Before | After | Why |
 |---|---|---|---|
 | `RULEBOOK_VERSION` (`contracts.ts:25`) | `rulebook-2026.10-v0.1` | One bump covering PR #2–#4 | Audit replay can distinguish old vs new results |
-| `MOCK_RECOMMENDATION` | 94 / 72 / 58 / 35 (hand-written, inconsistent with the formula) | Real values after PR #3 | `dev:mock` matches production output |
+| `MOCK_RECOMMENDATION` | 94 / 72 / 58 / 35 (hand-written, inconsistent with the formula) | **100 / 69 / 59 / 40** — real output as of stage 3, see full JSON below | `dev:mock` matches production output |
 
-Merge together with PR #3, or just before it.
+Merge together with PR #3, or just before it. C does not edit `shared/` — D (or whoever owns the shared PR) applies this.
+
+**New `MOCK_RECOMMENDATION.products` values** (from `MOCK_PROFILE`, confirmed via `npm run sandbox`, stage 3 HEAD):
+
+```json
+[
+  {
+    "productId": "WECARE_HEALTH", "eligibility": "STANDARD",
+    "sumAssuredCny": 1000000, "sumAssuredNeedCny": 1000000, "monthlyPremiumCny": 142,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 30,
+    "conditions": [{ "code": "EXCL_PRE_EXISTING", "description": "Pre-existing conditions are not covered" }],
+    "fitScore": 100, "subScores": { "R": 1, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["R_HIGH_MED", "U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "Matches your main concern; WeCare Health+ covers up to ¥1,000,000. You qualify at the standard rate.",
+    "overBudget": false, "recommended": true
+  },
+  {
+    "productId": "WEPROTECT_CI", "eligibility": "STANDARD",
+    "sumAssuredCny": 360000, "sumAssuredNeedCny": 360000, "monthlyPremiumCny": 130,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 90,
+    "conditions": [{ "code": "WAITING_90D", "description": "90-day waiting period" }],
+    "fitScore": 69, "subScores": { "R": 0.48, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "You qualify at the standard rate.",
+    "overBudget": false, "recommended": false
+  },
+  {
+    "productId": "WESAFE_ACCIDENT", "eligibility": "STANDARD",
+    "sumAssuredCny": 200000, "sumAssuredNeedCny": 200000, "monthlyPremiumCny": 30,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 0,
+    "conditions": [{ "code": "COVER_DAY_ONE", "description": "Covered from day one, no health check" }],
+    "fitScore": 59, "subScores": { "R": 0.31, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "You qualify at the standard rate.",
+    "overBudget": false, "recommended": false
+  },
+  {
+    "productId": "WELIFE_DEBT", "eligibility": "STANDARD",
+    "sumAssuredCny": 200000, "sumAssuredNeedCny": 200000, "monthlyPremiumCny": 54,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 0,
+    "conditions": [{ "code": "EXCL_SUICIDE_1Y", "description": "Suicide excluded in year 1" }],
+    "fitScore": 40, "subScores": { "R": 0, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["R_LOW", "U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "Only loosely related to the concern you selected. You qualify at the standard rate.",
+    "overBudget": false, "recommended": false
+  }
+]
+```
 
 ---
 
@@ -109,7 +156,7 @@ All work lives on C's personal branch, **`Nat-Engine2-3`** (team convention: one
 | 0 | Baseline | Baseline + defect confirmation + code review | ✅ Done |
 | 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ Done |
 | 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ Done |
-| 3 | Scoring | Normalised R + new weights + U by type + V guard | ⏳ |
+| 3 | Scoring | Normalised R + new weights + U by type + V guard | ✅ Done |
 | 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ⏳ |
 
 Stages run in order: Scoring depends on the Rate table's premiums.
@@ -124,6 +171,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 - Two new condition codes in `conditions`: `MIN_PREMIUM_APPLIED`, `PRICE_ABOVE_BAND`
 - After PR #4, all condition codes appear in `reasonCodes`, enabling localisation from codes
 - No plan to emit `DECLINED` yet; will notify first (empty state already handled at `Results.tsx:29`)
+- **New (stage 3) — worth your attention for the match-rate bar chart and comparison table:** the sorted-by-`fitScore` list and the `recommended` flag can now disagree on which row is "best." Persona P5 (tight budget, prior major surgery): `WeCare Health+` sorts to the top (`fitScore` 78, driven by a now-dominant R weight) but is NOT `recommended` — it fails the separate budget-limit gate in `score()` (premium ¥236 vs a ¥132 limit). `WeSafe Accident` (`fitScore` 59) sorts below it but IS `recommended`. This is pre-existing gate logic, not new, but stage 3's R-normalisation makes the mismatch visible for the first time. If `MatchChart`/`ComparisonTable` render the `recommended` badge next to a lower bar than the top one, that's expected, not a bug — but you may want a visual treatment for it
 
 ### B — Engine 1
 - No action needed. Engine 3 normalises R itself and does not depend on needVector tuning
@@ -164,6 +212,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 
 ## Changelog
 
+- 2026-10-08 — Stage 3 (Scoring) done. Weights -> R 0.60/A 0.20/U 0.10/V 0.10. R min-max normalised over CATALOG (`Rmax === Rmin` guarded to 1). U moved from a flat −0.15/condition to a severity table (`CONDITION_SEVERITY` + `U_PENALTY`, exported as one constant each) — limitation −0.05, exclusion −0.15, pricing 0, unknown code defaults to exclusion. V guarded explicitly (`sumAssuredNeedCny <= 0 -> V = 1`) instead of relying on `min(1, Infinity)`. P1 confirmed exactly at the predicted 100/69/59/40. The `recommended` winner is unchanged for all 5 personas, but P5 now has a mismatch between the fitScore-sorted top row (WeCare, 78, fails the budget-limit gate) and the `recommended` row (WeSafe Accident, 59) — flagged for A in §6, pre-existing gate logic, newly visible because of the R weight increase. New `MOCK_RECOMMENDATION` values for D recorded in §4 (not applied — `shared/` is read-only for C).
 - 2026-10-08 — Stage 2 follow-up: WeProtect CI rate table was over-corrected (all 5 bands cut ~45-57%, not just the one out-of-band case). Recalibrated: bands 1-3 now match the old per-age rate almost exactly (¥130/¥200/¥223 for P1/P3/P2, vs the ¥72/¥96/¥223 first attempt), only bands 4-5 compressed to clear `priceMaxCny` at the reference sum assured. P2's loaded premium (¥363) is now allowed to exceed the band again — correctly disclosed via `CONDITIONAL` + `PRICE_ABOVE_BAND` instead of either silently exceeding (the original bug) or being artificially suppressed (the first fix attempt). Also: WeCare's defect #4 fix is confirmed to only apply to the 1,000,000 tier (primary=MED); the 500k tier's flat floor is recorded as a known, accepted limitation (§7) rather than fixed.
 - 2026-10-08 — Stage 2 (Rate table) done. Linear `ageFactor` replaced by 5 age bands per product (18-29/30-39/40-49/50-59/60-65), calibrated against each product's standard reference sum assured. Occupation loading untouched. `MIN_PREMIUM_APPLIED` and `PRICE_ABOVE_BAND` conditions added — floor stays, ceiling never clamps. All 3 stage-1 `it.fails` flipped to passing; `npm run sandbox` confirms premiums and WECARE_HEALTH recommendation (see PR report for full before/after table). Known tradeoff: the 500k WeCare tier (non-MED primary) still floors for most personas — the rate table was calibrated against the 1,000,000 reference tier, since tuning for both tiers at once runs into the priceMaxCny ceiling on the high end; flagged for team visibility, not fixed here.
 - 2026-10-07 — Stage 1 (Tests) moved onto `Nat-Engine2-3` per team convention (one branch per member); `c/uw-edge-tests` retired
