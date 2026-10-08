@@ -10,6 +10,9 @@
 import type { CustomerProfile, Eligibility, ProductId, Score, ScoredProduct, SubScores, UnderwritingResult } from '@insightshield/shared';
 import { CATALOG, CONCERN_CODES, PRODUCT_IDS } from '@insightshield/shared';
 import { explain } from './explain';
+import { conditionPenalty } from './severity';
+
+export { CONDITION_SEVERITY } from './severity';
 
 export const WEIGHTS = { R: 0.6, A: 0.2, U: 0.1, V: 0.1 } as const;
 export const OVER_BUDGET_TOLERANCE = 0.1; // up to +10% can still be shown with a flag
@@ -21,33 +24,6 @@ const eligibilityFactor = (e: Eligibility) => (e === 'DECLINED' ? 0 : e === 'REF
 export function affordability(premium: number, budget: number): number {
   if (premium <= budget) return 1;
   return Math.max(0, 1 - (premium - budget) / (0.5 * budget)); // 0 at 1.5 × budget
-}
-
-/**
- * Condition code -> severity, for the U sub-score. A mild limitation shouldn't cost
- * as much as an exclusion; pricing-related conditions already show up in A, so they
- * cost nothing here. Unknown codes default to 'exclusion' — the conservative choice.
- */
-export const CONDITION_SEVERITY: Record<string, 'limitation' | 'exclusion' | 'pricing'> = {
-  CAP_CLASS3: 'limitation',
-  WAITING_120D: 'limitation',
-  EXCL_NCD: 'exclusion',
-  EXCL_PRIOR_SURGERY: 'exclusion',
-  LOAD_SMOKER: 'pricing',
-  LOAD_NCD: 'pricing',
-  MIN_PREMIUM_APPLIED: 'pricing',
-  PRICE_ABOVE_BAND: 'pricing',
-};
-
-const U_PENALTY: Record<'limitation' | 'exclusion' | 'pricing', number> = {
-  limitation: 0.05,
-  exclusion: 0.15,
-  pricing: 0,
-};
-
-function conditionPenalty(code: string): number {
-  const severity = CONDITION_SEVERITY[code] ?? 'exclusion';
-  return U_PENALTY[severity];
 }
 
 /** Raw (unnormalised) concern-relevance dot product for one product. */
@@ -88,7 +64,7 @@ export const score: Score = (profile, concern, underwriting) => {
     }
     const fit = Math.round(weighted);
     const overBudget = u.monthlyPremiumCny > profile.monthlyBudgetCny;
-    const { reasonCodes, explanation } = explain(u, s, profile, concern.primary);
+    const { reasonCodes, explanation } = explain(u, s, profile, concern.primary, limit);
     return { ...u, fitScore: fit, subScores: s, reasonCodes, explanation, overBudget, recommended: false };
   });
 
