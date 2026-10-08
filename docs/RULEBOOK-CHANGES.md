@@ -108,7 +108,7 @@ All work lives on C's personal branch, **`Nat-Engine2-3`** (team convention: one
 |---|---|---|---|
 | 0 | Baseline | Baseline + defect confirmation + code review | ✅ Done |
 | 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ Done |
-| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ⏳ |
+| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ Done |
 | 3 | Scoring | Normalised R + new weights + U by type + V guard | ⏳ |
 | 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ⏳ |
 
@@ -162,6 +162,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 
 ## Changelog
 
+- 2026-10-08 — Stage 2 (Rate table) done. Linear `ageFactor` replaced by 5 age bands per product (18-29/30-39/40-49/50-59/60-65), calibrated against each product's standard reference sum assured. Occupation loading untouched. `MIN_PREMIUM_APPLIED` and `PRICE_ABOVE_BAND` conditions added — floor stays, ceiling never clamps. All 3 stage-1 `it.fails` flipped to passing; `npm run sandbox` confirms premiums and WECARE_HEALTH recommendation (see PR report for full before/after table). Known tradeoff: the 500k WeCare tier (non-MED primary) still floors for most personas — the rate table was calibrated against the 1,000,000 reference tier, since tuning for both tiers at once runs into the priceMaxCny ceiling on the high end; flagged for team visibility, not fixed here.
 - 2026-10-07 — Stage 1 (Tests) moved onto `Nat-Engine2-3` per team convention (one branch per member); `c/uw-edge-tests` retired
 - 2026-10-07 — Stage 1 pushed as a standalone branch. Class 3 rate invariant already holds, so #2 removed from defects and occupation-loading work removed from PR #2
 - 2026-10-07 — Document created; Step 0 baseline and code review complete; decisions on price floor / `WAITING_120D` / `A_FLOOR` / `PRICE_ABOVE_BAND` split

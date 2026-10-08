@@ -1,12 +1,10 @@
 /**
- * ENGINE 2 + 3 — edge cases, invariants, and known-defect characterisation (owner: C)
+ * ENGINE 2 + 3 — edge cases, invariants, and defect regression tests (owner: C)
  * New file, separate from contract.test.ts (shared across all owners — do not touch it here).
  *
- * "Known defects" below are intentionally written with `it.fails`: they document real,
- * reproducible bugs in the current code. Each one names the defect and the PR that will
- * fix it (PR #2 = c/uw-rate-table, PR #3 = c/scoring-contrast). When a fix PR lands and a
- * `.fails` test starts passing for real, vitest will flag it as an unexpected pass —
- * flip it back to a normal `it` at that point.
+ * Stage 1 landed 3 defects as `it.fails`. Stage 2 (rate table) fixed all 3; they're now
+ * normal passing tests under "fixed in stage 2" below, each still naming the original
+ * defect for traceability. No known defects remain open as of stage 2.
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOG, MOCK_PROFILE, PERSONAS, PRODUCT_IDS } from '@insightshield/shared';
@@ -196,32 +194,47 @@ describe('Engine 2/3 — invariants (property tests)', () => {
   });
 });
 
-describe('Engine 2/3 — known defects (expected to fail until fix PRs; see comments)', () => {
-  it.fails('defect #3a: WeProtect CI loaded premium must stay within priceMaxCny (fix: PR #2 c/uw-rate-table, priceMaxCny check)', async () => {
+describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
+  it('WeProtect CI loaded premium stays within priceMaxCny for persona P2 (was defect #3a: ¥351 > ¥300)', async () => {
     const { profile } = PERSONAS.find((p) => p.id === 'P2')!;
     const concern = await translateConcern(profile);
     const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
-    // Today: ¥351 > priceMaxCny ¥300, with no CONDITIONAL flag and no PRICE_ABOVE_BAND.
     expect(ci.monthlyPremiumCny).toBeLessThanOrEqual(CATALOG.WEPROTECT_CI.priceMaxCny);
+    expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(false);
   });
 
-  it.fails('defect #3b: WeProtect CI base premium (no loadings) must also stay within priceMaxCny at high age (fix: PR #2 c/uw-rate-table, ageFactor rebalance)', async () => {
+  it('WeProtect CI base premium stays within priceMaxCny for persona P5 at age 52 (was defect #3b: ¥302.40 > ¥300)', async () => {
     const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
     const concern = await translateConcern(profile);
     const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
-    // Today: age 52, no smoker/health loadings apply to P5's CI row, so the loaded premium
-    // IS the base — ¥302 > priceMaxCny ¥300, purely from ageFactor's slope.
     expect(ci.monthlyPremiumCny).toBeLessThanOrEqual(CATALOG.WEPROTECT_CI.priceMaxCny);
+    expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(false);
   });
 
-  it.fails('defect #4: WeCare premium should reflect a 5-year age gap, not be flattened to the same floored value (fix: PR #2 c/uw-rate-table, ageFactor rebalance)', async () => {
+  it('WeCare premium now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130)', async () => {
     const profile = { ...BASE_PROFILE, concern: 'MED' as const };
     const concern = await translateConcern(profile);
     const at25 = prescreen({ ...profile, age: 25 }, concern).find((u) => u.productId === 'WECARE_HEALTH')!;
     const at30 = prescreen({ ...profile, age: 30 }, concern).find((u) => u.productId === 'WECARE_HEALTH')!;
-    // Today: both land under priceMinCny and get floored to exactly ¥130 — identical,
-    // despite the 5-year gap. The floor is masking a real (if small) age signal.
-    expect(at25.monthlyPremiumCny).not.toBe(at30.monthlyPremiumCny);
+    expect(at30.monthlyPremiumCny).toBeGreaterThan(at25.monthlyPremiumCny);
+    expect(at25.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
+    expect(at30.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
+  });
+
+  it('PRICE_ABOVE_BAND still triggers for extreme loading (age 60-65 band + smoker + ncd on WeProtect CI)', async () => {
+    const profile: CustomerProfile = { ...BASE_PROFILE, age: 62, smoker: true, health: 'ncd', concern: 'INC' };
+    const concern = await translateConcern(profile);
+    const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
+    expect(ci.monthlyPremiumCny).toBeGreaterThan(CATALOG.WEPROTECT_CI.priceMaxCny);
+    expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(true);
+    expect(ci.eligibility).toBe('CONDITIONAL');
+  });
+
+  it('MIN_PREMIUM_APPLIED still triggers when sum assured is reduced (Class 3 accident cap)', async () => {
+    const profile: CustomerProfile = { ...BASE_PROFILE, gender: 'male', occupation: 'technician', concern: 'ACC' as const };
+    const concern = await translateConcern(profile);
+    const accident = prescreen(profile, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
+    expect(accident.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(true);
   });
 });
 
