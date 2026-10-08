@@ -1,6 +1,10 @@
 /**
  * ENGINE 3 — Fit-Scoring & XAI (owner: C)
  * F = 100 × E × (0.60R + 0.20A + 0.10U + 0.10V)   (doc section 3.4, rebalanced in stage 3)
+ * If the premium exceeds the budget limit (1.1 × budget — the same gate `score()`
+ * uses to pick a recommendation), F is scaled by budgetLimit/premium. A=0.20 alone
+ * only costs 20 points for being unaffordable; this keeps an over-budget product
+ * from outscoring an affordable recommendation regardless of how well it matches.
  * Pure function. Weights live here and are versioned with RULEBOOK_VERSION.
  */
 import type { CustomerProfile, Eligibility, ProductId, Score, ScoredProduct, SubScores, UnderwritingResult } from '@insightshield/shared';
@@ -74,17 +78,21 @@ export const score: Score = (profile, concern, underwriting) => {
   const rawRByProduct = PRODUCT_IDS.map((id) => rawR(concern.needVector, id));
   const rMin = Math.min(...rawRByProduct);
   const rMax = Math.max(...rawRByProduct);
+  const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
 
   const scored: ScoredProduct[] = underwriting.map((u) => {
     const s = subScores(u, concern.needVector, profile, rMin, rMax);
-    const fit = Math.round(100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V));
+    let weighted = 100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V);
+    if (u.monthlyPremiumCny > limit) {
+      weighted *= limit / u.monthlyPremiumCny; // never outranks an affordable recommendation
+    }
+    const fit = Math.round(weighted);
     const overBudget = u.monthlyPremiumCny > profile.monthlyBudgetCny;
     const { reasonCodes, explanation } = explain(u, s, profile, concern.primary);
     return { ...u, fitScore: fit, subScores: s, reasonCodes, explanation, overBudget, recommended: false };
   });
 
   scored.sort((a, b) => b.fitScore - a.fitScore);
-  const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
   const top = scored.find((p) => p.subScores.E > 0 && p.monthlyPremiumCny <= limit);
   if (top) top.recommended = true;
   return scored;
