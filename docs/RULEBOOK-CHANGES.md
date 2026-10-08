@@ -14,7 +14,7 @@ Confirmed by running `npm run sandbox` (baseline: `logs/baseline-before.json`) a
 | 1 | Scores are compressed | P1 scores 84 / 74 / 71 / 64; a product irrelevant to the stated need still scores 64 | `scoring/index.ts:10, :22-24` |
 | 2 | ~~Class 3 pays less than Class 1~~ **Not a defect** | Total ¥25 vs ¥30, but Class 3 receives half the sum assured; its rate per ¥ of cover is already higher (test passes) | — |
 | 3 | `priceMaxCny` never enforced | P2 WeProtect CI ¥351 (max ¥300); P5 base ¥302.40 exceeds max before any loading | `underwriting/index.ts:20-24, :96` |
-| 4 | Price floor silently hides the real premium | `Math.max(loaded, priceMinCny)` overwrites the computed value in 6 of 20 persona × product cases (WeCare ×4, WeLife ×1, Accident ×1) | `underwriting/index.ts:96` |
+| 4 | Price floor silently hides the real premium — **partially fixed** | `Math.max(loaded, priceMinCny)` overwrites the computed value in 6 of 20 persona × product cases (WeCare ×4, WeLife ×1, Accident ×1). Fixed for WeCare's 1M tier (primary=MED); the 500k tier (primary≠MED) still floors flat — now disclosed via `MIN_PREMIUM_APPLIED`, but not differentiated by age. See §7 decision. | `underwriting/index.ts:96` |
 | 5 | One fact penalised three times | Class 3: premium loading + V halved + U −0.15 | `scoring/index.ts:26-28` |
 
 **Root cause of #1:** an affordable, unconditional, fully covering product gets A = U = V = 1, a free 55-point floor. R is a raw dot product ranging only 0.21–0.64, so it moves about 19 of 100 points.
@@ -150,6 +150,8 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 | `WAITING_120D` | Limitation, U −0.05 |
 | `A_FLOOR` | Dropped; replaced by `MIN_PREMIUM_APPLIED` |
 | `PRICE_ABOVE_BAND` | Engine 2 half in PR #2, surfacing in PR #4 |
+| WeCare 500k tier (primary≠MED) still floors flat across all ages | Accepted as a known limitation, not fixed in stage 2. `catalog.ts` (shared) is read-only, and a sum-assured-tiered rate table (separate rates per sum-assured tier, not just per age) is more scope than "replace the age factor." The floor is still disclosed via `MIN_PREMIUM_APPLIED`, just not age-differentiated. Revisit only if the team wants to invest in a tiered rate table later |
+| WeProtect CI base rate calibration | Calibrate bands 1-3 to match the old per-age rate almost exactly (never historically out of band there); compress only bands 4-5 enough to clear `priceMaxCny` at the reference sum assured (¥360,000). A loaded premium (smoker/NCD) or an income-driven higher sum assured (¥400,000) exceeding the band is allowed by design — disclosed via `PRICE_ABOVE_BAND`, not suppressed by lowering the rate further |
 
 ## 8. Open Questions
 
@@ -162,6 +164,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 
 ## Changelog
 
+- 2026-10-08 — Stage 2 follow-up: WeProtect CI rate table was over-corrected (all 5 bands cut ~45-57%, not just the one out-of-band case). Recalibrated: bands 1-3 now match the old per-age rate almost exactly (¥130/¥200/¥223 for P1/P3/P2, vs the ¥72/¥96/¥223 first attempt), only bands 4-5 compressed to clear `priceMaxCny` at the reference sum assured. P2's loaded premium (¥363) is now allowed to exceed the band again — correctly disclosed via `CONDITIONAL` + `PRICE_ABOVE_BAND` instead of either silently exceeding (the original bug) or being artificially suppressed (the first fix attempt). Also: WeCare's defect #4 fix is confirmed to only apply to the 1,000,000 tier (primary=MED); the 500k tier's flat floor is recorded as a known, accepted limitation (§7) rather than fixed.
 - 2026-10-08 — Stage 2 (Rate table) done. Linear `ageFactor` replaced by 5 age bands per product (18-29/30-39/40-49/50-59/60-65), calibrated against each product's standard reference sum assured. Occupation loading untouched. `MIN_PREMIUM_APPLIED` and `PRICE_ABOVE_BAND` conditions added — floor stays, ceiling never clamps. All 3 stage-1 `it.fails` flipped to passing; `npm run sandbox` confirms premiums and WECARE_HEALTH recommendation (see PR report for full before/after table). Known tradeoff: the 500k WeCare tier (non-MED primary) still floors for most personas — the rate table was calibrated against the 1,000,000 reference tier, since tuning for both tiers at once runs into the priceMaxCny ceiling on the high end; flagged for team visibility, not fixed here.
 - 2026-10-07 — Stage 1 (Tests) moved onto `Nat-Engine2-3` per team convention (one branch per member); `c/uw-edge-tests` retired
 - 2026-10-07 — Stage 1 pushed as a standalone branch. Class 3 rate invariant already holds, so #2 removed from defects and occupation-loading work removed from PR #2
