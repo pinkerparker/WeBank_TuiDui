@@ -67,15 +67,32 @@ R'   = (R - Rmin) / (Rmax - Rmin)      // Rmax === Rmin → R' = 1
 
 **Over-budget scaling (stage 3 fix)** — with A weighted only 0.20, being far over budget used to cost at most 20 points, letting an unaffordable-but-relevant product outscore an affordable recommendation (P5: WeCare 78% vs the recommended WeSafe Accident's 59%). Fix: if `monthlyPremiumCny` exceeds the same budget limit `score()` already uses to pick a recommendation (`1.1 × monthlyBudgetCny`), the weighted sum is multiplied by `limit / premium` before rounding. Within the limit, the factor is 1 (no-op); it is always `< 1` when it applies, so a score can never be increased by it. No new `SubScores` field — this scales the final `fitScore`, not any sub-score, and sort order is still by `fitScore`.
 
-### XAI (PR #4)
+### XAI (stage 4 — done)
 
 | Item | Before | After |
 |---|---|---|
-| Condition codes | Not propagated to `reasonCodes` | Every `Condition.code` mirrored into `reasonCodes` |
-| U | `U_STANDARD` / `U_CONDITIONAL` / `U_REFERRED` | Add `U_CAP_ONLY` (limitations only, no exclusions) |
-| V | `V_CAPPED` only | Split into `V_CAPPED` (catalog max) and `V_CAPPED_BY_CLASS` (Class 3 cap) |
+| Condition codes | Not propagated to `reasonCodes` | Every `Condition.code` (statutory + extra) mirrored into `reasonCodes`, in `u.conditions` order |
+| U | `U_STANDARD` / `U_CONDITIONAL` / `U_REFERRED` | Added `U_CAP_ONLY` — fires when the extra conditions contain a `limitation`-severity code and no `exclusion`-severity code |
+| V | `V_CAPPED` only | Split: `V_CAPPED_BY_CLASS` when `CAP_CLASS3` is present among the conditions, else `V_CAPPED` |
+| A (new, from the over-budget fix) | — | Added `A_OVER_BUDGET_SCALED` — fires when `monthlyPremiumCny` exceeds the `1.1×budget` limit (the same one the scaling factor and the recommendation gate use); explanation names the limit |
 
-`A_FLOOR` dropped (no clear definition); `MIN_PREMIUM_APPLIED` from Engine 2 replaces it.
+`A_FLOOR` dropped (no clear definition); `MIN_PREMIUM_APPLIED` from Engine 2 is mirrored into `reasonCodes` via the condition-code pass instead.
+
+**`severityOf`/`CONDITION_SEVERITY` moved to a new file, `scoring/severity.ts`** — both `index.ts` (U sub-score) and `explain.ts` (`U_CAP_ONLY`, `V_CAPPED_BY_CLASS`) import from there, avoiding a circular import between the two. `index.ts` still re-exports `CONDITION_SEVERITY` for anyone already importing it from there.
+
+**Final `reasonCodes` vocabulary** — exported as `REASON_CODES` from `scoring/explain.ts`, so the frontend can localise from codes alone without parsing English sentences:
+
+```
+R_HIGH_MED, R_HIGH_INC, R_HIGH_ACC, R_HIGH_DEBT, R_LOW,
+U_STANDARD, U_CONDITIONAL, U_REFERRED, U_CAP_ONLY,
+A_WITHIN_BUDGET, A_OVER_BUDGET, A_OVER_BUDGET_SCALED,
+V_CAPPED, V_CAPPED_BY_CLASS,
+EXCL_PRE_EXISTING, WAITING_90D, COVER_DAY_ONE, EXCL_SUICIDE_1Y,   // statutory, mirrored from catalog.ts
+CAP_CLASS3, WAITING_120D, EXCL_NCD, EXCL_PRIOR_SURGERY,           // non-statutory: limitation / exclusion
+LOAD_SMOKER, LOAD_NCD, MIN_PREMIUM_APPLIED, PRICE_ABOVE_BAND      // non-statutory: pricing
+```
+
+Deterministic fixed order per product: Relevance (R) -> Underwriting (U, incl. `U_CAP_ONLY`) -> every raw condition code (in `u.conditions` order) -> Affordability (A, incl. `A_OVER_BUDGET_SCALED`) -> Coverage (V). Same input always produces the same array.
 
 ---
 
@@ -159,7 +176,7 @@ All work lives on C's personal branch, **`Nat-Engine2-3`** (team convention: one
 | 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ Done |
 | 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ Done |
 | 3 | Scoring | Normalised R + new weights + U by type + V guard | ✅ Done |
-| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ⏳ |
+| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ✅ Done |
 
 Stages run in order: Scoring depends on the Rate table's premiums.
 
@@ -215,6 +232,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 
 ## Changelog
 
+- 2026-10-08 — Stage 4 (XAI) done, last code stage. Every `Condition.code` (statutory + extra) mirrored into `reasonCodes`. Added `U_CAP_ONLY` (limitations only, no exclusions among the extra conditions), split `V_CAPPED_BY_CLASS` (CAP_CLASS3 present) from plain `V_CAPPED` (catalog max), added `A_OVER_BUDGET_SCALED` for the stage-3 over-budget fix (explanation names the budget limit). Full vocabulary exported as `REASON_CODES` from `scoring/explain.ts` — see §2. Moved `CONDITION_SEVERITY`/`conditionPenalty` to a new `scoring/severity.ts` to avoid a circular import between `index.ts` and `explain.ts` (both now import from there; `index.ts` still re-exports `CONDITION_SEVERITY`). No change to Engine 2 or to any fitScore/sub-score — confirmed via an exact fitScore snapshot test across all 5 personas, matching the last report precisely (P1 100/69/59/40, P2 95/70/40/37, P3 100/60/44/40, P4 99/43/42/40, P5 59/44/40/11).
 - 2026-10-08 — Stage 3 fix: over-budget products could outscore the recommendation (P5: unaffordable WeCare 78% > recommended WeSafe Accident 59% — a real defect, not just a display nuance, since A's 0.20 weight only cost 20 points for being unaffordable). Fixed by scaling the weighted sum by `budgetLimit/premium` (1.1× the customer's budget, the same limit `score()` already uses to pick a recommendation) whenever premium exceeds it, applied before rounding. P5 WeCare 78->44, P2 WeProtect CI 41->37 (also over its limit); every other cell unchanged, P1 still exactly 100/69/59/40. New invariant test: no non-recommended product may outscore the recommended one, holds for all 5 personas.
 - 2026-10-08 — Stage 3 (Scoring) done. Weights -> R 0.60/A 0.20/U 0.10/V 0.10. R min-max normalised over CATALOG (`Rmax === Rmin` guarded to 1). U moved from a flat −0.15/condition to a severity table (`CONDITION_SEVERITY` + `U_PENALTY`, exported as one constant each) — limitation −0.05, exclusion −0.15, pricing 0, unknown code defaults to exclusion. V guarded explicitly (`sumAssuredNeedCny <= 0 -> V = 1`) instead of relying on `min(1, Infinity)`. P1 confirmed exactly at the predicted 100/69/59/40. The `recommended` winner is unchanged for all 5 personas, but P5 now has a mismatch between the fitScore-sorted top row (WeCare, 78, fails the budget-limit gate) and the `recommended` row (WeSafe Accident, 59) — flagged for A in §6, pre-existing gate logic, newly visible because of the R weight increase. New `MOCK_RECOMMENDATION` values for D recorded in §4 (not applied — `shared/` is read-only for C).
 - 2026-10-08 — Stage 2 follow-up: WeProtect CI rate table was over-corrected (all 5 bands cut ~45-57%, not just the one out-of-band case). Recalibrated: bands 1-3 now match the old per-age rate almost exactly (¥130/¥200/¥223 for P1/P3/P2, vs the ¥72/¥96/¥223 first attempt), only bands 4-5 compressed to clear `priceMaxCny` at the reference sum assured. P2's loaded premium (¥363) is now allowed to exceed the band again — correctly disclosed via `CONDITIONAL` + `PRICE_ABOVE_BAND` instead of either silently exceeding (the original bug) or being artificially suppressed (the first fix attempt). Also: WeCare's defect #4 fix is confirmed to only apply to the 1,000,000 tier (primary=MED); the 500k tier's flat floor is recorded as a known, accepted limitation (§7) rather than fixed.
