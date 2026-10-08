@@ -8,10 +8,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOG, MOCK_PROFILE, PERSONAS, PRODUCT_IDS } from '@insightshield/shared';
-import type { CustomerProfile, Eligibility, ProductId } from '@insightshield/shared';
+import type { CustomerProfile, Eligibility, ProductId, UnderwritingResult } from '@insightshield/shared';
 import { translateConcern } from '../src/engines/concern';
 import { prescreen } from '../src/engines/underwriting';
-import { score, affordability } from '../src/engines/scoring';
+import { score, affordability, subScores } from '../src/engines/scoring';
 
 const ELIGIBILITIES: Eligibility[] = ['STANDARD', 'CONDITIONAL', 'REFERRED', 'DECLINED'];
 
@@ -100,19 +100,17 @@ describe('Engine 2/3 — edge cases', () => {
     expect(debt.sumAssuredCny).toBeGreaterThanOrEqual(CATALOG.WELIFE_DEBT.sumAssuredMinCny);
   });
 
-  it('annualIncomeCny: 0 (explicit) makes WeProtect CI need 0, but V stays finite and in [0,1]', async () => {
+  it('annualIncomeCny: 0 (explicit) makes WeProtect CI need 0, and V = 1 via the explicit guard', async () => {
     // `annualIncomeCny ?? 120_000` only falls back on null/undefined, not on 0 — so an
-    // explicit 0 survives as a real 0 need. sumAssuredCny is still clamped to the catalog
-    // minimum (never 0), so V = min(1, sa/0) = min(1, Infinity) = 1, not NaN. No guard
-    // exists in the code for this today; this test documents that it happens to be safe.
+    // explicit 0 survives as a real 0 need. Stage 3 added an explicit guard
+    // (sumAssuredNeedCny <= 0 -> V = 1) instead of relying on min(1, sa/0) = min(1,
+    // Infinity) happening to not be NaN.
     const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'INC', annualIncomeCny: 0 };
     const { underwriting, scored } = await runPipeline(profile);
     const ciUnderwriting = underwriting.find((u) => u.productId === 'WEPROTECT_CI')!;
     expect(ciUnderwriting.sumAssuredNeedCny).toBe(0);
     const ciScored = scored.find((p) => p.productId === 'WEPROTECT_CI')!;
-    expect(Number.isFinite(ciScored.subScores.V)).toBe(true);
-    expect(ciScored.subScores.V).toBeGreaterThanOrEqual(0);
-    expect(ciScored.subScores.V).toBeLessThanOrEqual(1);
+    expect(ciScored.subScores.V).toBe(1);
   });
 });
 
@@ -257,6 +255,110 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     const concern = await translateConcern(profile);
     const accident = prescreen(profile, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
     expect(accident.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(true);
+  });
+});
+
+describe('Engine 2/3 — stage 3 (scoring): U penalty by condition type', () => {
+  const needVector = { MED: 0.25, INC: 0.25, ACC: 0.25, DEBT: 0.25 };
+  const baseU: UnderwritingResult = {
+    productId: 'WECARE_HEALTH',
+    eligibility: 'STANDARD',
+    sumAssuredCny: 500_000,
+    sumAssuredNeedCny: 500_000,
+    monthlyPremiumCny: 130,
+    loadings: { occupation: 0, smoker: 0, health: 0 },
+    waitingPeriodDays: 30,
+    conditions: [...CATALOG.WECARE_HEALTH.statutoryConditions],
+  };
+  const withExtraCode = (code: string): UnderwritingResult => ({
+    ...baseU,
+    conditions: [...CATALOG.WECARE_HEALTH.statutoryConditions, { code, description: 'test' }],
+  });
+
+  it.each([
+    ['CAP_CLASS3', 0.95],
+    ['WAITING_120D', 0.95],
+  ])('limitation code %s costs U -0.05 (U = %f)', (code, expectedU) => {
+    expect(subScores(withExtraCode(code), needVector, BASE_PROFILE, 0, 1).U).toBe(expectedU);
+  });
+
+  it.each([
+    ['EXCL_NCD', 0.85],
+    ['EXCL_PRIOR_SURGERY', 0.85],
+  ])('exclusion code %s costs U -0.15 (U = %f)', (code, expectedU) => {
+    expect(subScores(withExtraCode(code), needVector, BASE_PROFILE, 0, 1).U).toBe(expectedU);
+  });
+
+  it.each([
+    ['LOAD_SMOKER', 1],
+    ['LOAD_NCD', 1],
+    ['MIN_PREMIUM_APPLIED', 1],
+    ['PRICE_ABOVE_BAND', 1],
+  ])('pricing code %s costs U nothing — already reflected in A (U = %f)', (code, expectedU) => {
+    expect(subScores(withExtraCode(code), needVector, BASE_PROFILE, 0, 1).U).toBe(expectedU);
+  });
+
+  it('an unknown condition code defaults to exclusion severity (-0.15), the conservative choice', () => {
+    expect(subScores(withExtraCode('SOME_FUTURE_CODE'), needVector, BASE_PROFILE, 0, 1).U).toBe(0.85);
+  });
+
+  it('U never goes negative, even stacking many exclusion-severity conditions', () => {
+    const stacked: UnderwritingResult = {
+      ...baseU,
+      conditions: [
+        ...CATALOG.WECARE_HEALTH.statutoryConditions,
+        { code: 'EXCL_NCD', description: 'x' },
+        { code: 'EXCL_PRIOR_SURGERY', description: 'x' },
+        { code: 'UNKNOWN_1', description: 'x' },
+        { code: 'UNKNOWN_2', description: 'x' },
+        { code: 'UNKNOWN_3', description: 'x' },
+        { code: 'UNKNOWN_4', description: 'x' },
+        { code: 'UNKNOWN_5', description: 'x' },
+      ],
+    };
+    expect(subScores(stacked, needVector, BASE_PROFILE, 0, 1).U).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('Engine 2/3 — stage 3 (scoring): R normalisation', () => {
+  it("R' is in [0,1] for every persona × product, and the best-matching product gets R' = 1", async () => {
+    for (const { profile } of PERSONAS) {
+      const { scored } = await runPipeline(profile);
+      for (const p of scored) {
+        expect(p.subScores.R).toBeGreaterThanOrEqual(0);
+        expect(p.subScores.R).toBeLessThanOrEqual(1);
+      }
+      const maxR = Math.max(...scored.map((p) => p.subScores.R));
+      expect(maxR).toBe(1);
+    }
+  });
+
+  it('Rmax === Rmin guard: forcing rMin === rMax collapses R to 1, independent of the raw dot product', () => {
+    for (const id of PRODUCT_IDS) {
+      const u: UnderwritingResult = {
+        productId: id,
+        eligibility: 'STANDARD',
+        sumAssuredCny: CATALOG[id].sumAssuredMinCny,
+        sumAssuredNeedCny: CATALOG[id].sumAssuredMinCny,
+        monthlyPremiumCny: CATALOG[id].priceMinCny,
+        loadings: { occupation: 0, smoker: 0, health: 0 },
+        waitingPeriodDays: CATALOG[id].statutoryWaitingDays,
+        conditions: [...CATALOG[id].statutoryConditions],
+      };
+      const needVector = { MED: 0.25, INC: 0.25, ACC: 0.25, DEBT: 0.25 };
+      expect(subScores(u, needVector, BASE_PROFILE, 0, 0).R).toBe(1);
+    }
+  });
+});
+
+describe('Engine 2/3 — stage 3 (scoring): prototype profile spread', () => {
+  it('P1 (prototype): top product fitScore >= 90, and spread (max - min) >= 40', async () => {
+    const { scored } = await runPipeline(MOCK_PROFILE);
+    const scores = scored.map((p) => p.fitScore);
+    const top = Math.max(...scores);
+    const bottom = Math.min(...scores);
+    expect(top).toBeGreaterThanOrEqual(90);
+    expect(top - bottom).toBeGreaterThanOrEqual(40);
   });
 });
 
