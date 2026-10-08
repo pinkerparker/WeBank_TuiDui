@@ -8,10 +8,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOG, MOCK_PROFILE, PERSONAS, PRODUCT_IDS } from '@insightshield/shared';
-import type { CustomerProfile, Eligibility, ProductId, UnderwritingResult } from '@insightshield/shared';
+import type { CustomerProfile, Eligibility, ProductId, SubScores, UnderwritingResult } from '@insightshield/shared';
 import { translateConcern } from '../src/engines/concern';
 import { prescreen } from '../src/engines/underwriting';
-import { score, affordability, subScores } from '../src/engines/scoring';
+import { score, affordability, subScores, WEIGHTS, OVER_BUDGET_TOLERANCE } from '../src/engines/scoring';
+
+/** The weighted sum before the over-budget scaling factor — duplicated here deliberately, to compare against the real score() output rather than trust it blindly. */
+const rawWeighted = (s: SubScores) => 100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V);
 
 const ELIGIBILITIES: Eligibility[] = ['STANDARD', 'CONDITIONAL', 'REFERRED', 'DECLINED'];
 
@@ -359,6 +362,45 @@ describe('Engine 2/3 — stage 3 (scoring): prototype profile spread', () => {
     const bottom = Math.min(...scores);
     expect(top).toBeGreaterThanOrEqual(90);
     expect(top - bottom).toBeGreaterThanOrEqual(40);
+  });
+});
+
+describe('Engine 2/3 — stage 3 fix: over-budget scaling', () => {
+  it('P5: WeCare Health+ now scores below the recommended WeSafe Accident (was the contradiction: unaffordable 78% outranking recommended 59%)', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
+    const { scored } = await runPipeline(profile);
+    const wecare = scored.find((p) => p.productId === 'WECARE_HEALTH')!;
+    const accident = scored.find((p) => p.productId === 'WESAFE_ACCIDENT')!;
+    expect(accident.recommended).toBe(true);
+    expect(wecare.fitScore).toBeLessThan(accident.fitScore);
+  });
+
+  it('no non-recommended product ever outscores the recommended one, for every persona', async () => {
+    for (const { profile } of PERSONAS) {
+      const { scored } = await runPipeline(profile);
+      const top = scored.find((p) => p.recommended);
+      if (!top) continue; // no plan within budget for this persona — nothing to compare against
+      for (const p of scored) {
+        if (!p.recommended) expect(p.fitScore).toBeLessThanOrEqual(top.fitScore);
+      }
+    }
+  });
+
+  it('the over-budget factor never increases a score, and is a no-op within the budget limit', async () => {
+    for (const { profile } of PERSONAS) {
+      const concern = await translateConcern(profile);
+      const underwriting = prescreen(profile, concern);
+      const scored = score(profile, concern, underwriting);
+      const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
+      for (const p of scored) {
+        const unscaled = Math.round(rawWeighted(p.subScores));
+        if (p.monthlyPremiumCny > limit) {
+          expect(p.fitScore).toBeLessThanOrEqual(unscaled);
+        } else {
+          expect(p.fitScore).toBe(unscaled);
+        }
+      }
+    }
   });
 });
 
