@@ -15,10 +15,19 @@ import { CATALOG, PRODUCT_IDS } from '@insightshield/shared';
  * no-loan tier), the unloaded base premium stays within [priceMinCny, priceMaxCny]
  * for every band and every gender. WESAFE_ACCIDENT is intentionally flat — it is
  * not age-rated (unchanged from before). Occupation loading is untouched.
+ *
+ * WEPROTECT_CI specifically: bands 1-3 reproduce the old per-age rate almost
+ * exactly (it was never out of band there — the only historical base-only
+ * violation was band 4, age ~52, at the reference sum assured). Only bands 4-5
+ * are compressed, just enough to clear priceMaxCny at the reference sum
+ * assured. Smoker/NCD loadings — or a higher income-driven sum assured — can
+ * still push the LOADED premium above priceMaxCny; that is allowed by design
+ * and shows up as eligibility CONDITIONAL + condition PRICE_ABOVE_BAND, not a
+ * rate problem to suppress.
  */
 const AGE_BAND_RATES: Record<ProductId, readonly [number, number, number, number, number]> = {
   WECARE_HEALTH: [0.135, 0.155, 0.185, 0.225, 0.27],
-  WEPROTECT_CI: [0.2, 0.24, 0.3, 0.4, 0.55],
+  WEPROTECT_CI: [0.36, 0.5, 0.62, 0.8, 0.83],
   WESAFE_ACCIDENT: [0.15, 0.15, 0.15, 0.15, 0.15],
   WELIFE_DEBT: [0.3, 0.35, 0.45, 0.6, 0.75],
 };
