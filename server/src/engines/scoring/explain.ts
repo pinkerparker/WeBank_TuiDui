@@ -3,13 +3,15 @@
  * Explanations use ONLY facts from the reason codes (no invented claims).
  *
  * reasonCodes order is fixed and deterministic for a given input (same u/s/p/primary/
- * limit -> same array, every time):
+ * limit/recommended -> same array, every time):
  *   1. Relevance (R):     R_HIGH_<primary> | R_LOW
  *   2. Underwriting (U):  U_STANDARD | U_CONDITIONAL | U_REFERRED, then U_CAP_ONLY if it applies
  *   3. Every raw Condition.code from Engine 2 (statutory + extra), mirrored verbatim
  *      in `u.conditions` order, so the frontend can localise from codes alone
  *   4. Affordability (A): A_WITHIN_BUDGET | A_OVER_BUDGET, then A_OVER_BUDGET_SCALED if it applies
  *   5. Coverage (V):       V_CAPPED | V_CAPPED_BY_CLASS, only when V < 1
+ *   6. Recommendation rationale: REC_BEST_AFFORDABLE, only when this product IS the
+ *      recommendation and its own R isn't the best-matching one among the 4
  */
 import type { ConcernCode, CustomerProfile, SubScores, UnderwritingResult } from '@insightshield/shared';
 import { CATALOG, CONCERN_CODES } from '@insightshield/shared';
@@ -41,6 +43,7 @@ export const REASON_CODES = [
   'A_OVER_BUDGET_SCALED',
   'V_CAPPED',
   'V_CAPPED_BY_CLASS',
+  'REC_BEST_AFFORDABLE',
   ...ALL_CONDITION_CODES,
 ] as const;
 
@@ -50,6 +53,7 @@ export function explain(
   p: CustomerProfile,
   primary: ConcernCode,
   budgetLimitCny: number,
+  recommended: boolean,
 ) {
   const spec = CATALOG[u.productId];
   const codes: string[] = [];
@@ -109,6 +113,14 @@ export function explain(
     if (!cappedByClass) {
       lines.push(`Cover is capped at ${yuan(u.sumAssuredCny)} by product limits.`);
     }
+  }
+
+  // 6. Recommendation rationale — only needed when this product wins despite not being
+  // the single best concern-match, e.g. a tight-budget profile where the best-matching
+  // products are all over the budget limit.
+  if (recommended && s.R < 1) {
+    codes.push('REC_BEST_AFFORDABLE');
+    lines.push('This is the best match that fits your budget; options that match your main concern more closely are outside your budget limit.');
   }
 
   return { reasonCodes: codes, explanation: lines.join(' ') };

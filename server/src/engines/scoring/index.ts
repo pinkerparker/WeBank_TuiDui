@@ -56,7 +56,10 @@ export const score: Score = (profile, concern, underwriting) => {
   const rMax = Math.max(...rawRByProduct);
   const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
 
-  const scored: ScoredProduct[] = underwriting.map((u) => {
+  // Two passes: numbers first (fitScore, sort, pick the recommendation), then XAI text —
+  // explain() needs to know `recommended` to explain why THIS product won when its own R
+  // isn't the top match (see REC_BEST_AFFORDABLE).
+  const computed = underwriting.map((u) => {
     const s = subScores(u, concern.needVector, profile, rMin, rMax);
     let weighted = 100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V);
     if (u.monthlyPremiumCny > limit) {
@@ -64,12 +67,16 @@ export const score: Score = (profile, concern, underwriting) => {
     }
     const fit = Math.round(weighted);
     const overBudget = u.monthlyPremiumCny > profile.monthlyBudgetCny;
-    const { reasonCodes, explanation } = explain(u, s, profile, concern.primary, limit);
-    return { ...u, fitScore: fit, subScores: s, reasonCodes, explanation, overBudget, recommended: false };
+    return { u, s, fit, overBudget };
   });
 
-  scored.sort((a, b) => b.fitScore - a.fitScore);
-  const top = scored.find((p) => p.subScores.E > 0 && p.monthlyPremiumCny <= limit);
-  if (top) top.recommended = true;
+  computed.sort((a, b) => b.fit - a.fit);
+  const topEntry = computed.find((e) => e.s.E > 0 && e.u.monthlyPremiumCny <= limit);
+
+  const scored: ScoredProduct[] = computed.map((e) => {
+    const recommended = e === topEntry;
+    const { reasonCodes, explanation } = explain(e.u, e.s, profile, concern.primary, limit, recommended);
+    return { ...e.u, fitScore: e.fit, subScores: e.s, reasonCodes, explanation, overBudget: e.overBudget, recommended };
+  });
   return scored;
 };

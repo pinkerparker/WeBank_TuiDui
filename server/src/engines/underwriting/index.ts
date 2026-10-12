@@ -126,7 +126,7 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
 
   // Maximum premium: never clamp — flag for review instead.
   if (premium > spec.priceMaxCny) {
-    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard ¥${spec.priceMaxCny}/month maximum and is referred for underwriting review` });
+    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard ¥${spec.priceMaxCny}/month maximum, so this quote is conditional` });
     if (eligibility === 'STANDARD') eligibility = 'CONDITIONAL';
   }
 
