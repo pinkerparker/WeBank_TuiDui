@@ -5,7 +5,7 @@
 import type { BindRequest, BindResult, CustomerProfile, RecommendationResponse } from '@insightshield/shared';
 import { API, MOCK_BIND_RESULT, MOCK_RECOMMENDATION } from '@insightshield/shared';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
