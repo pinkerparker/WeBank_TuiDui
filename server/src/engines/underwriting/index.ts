@@ -103,7 +103,7 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
     }
   }
   if (p.health === 'major_surgery') {
-    if (id === 'WECARE_HEALTH') conditions.push({ code: 'EXCL_PRIOR_SURGERY', description: 'Condition related to prior surgery excluded' });
+    if (id === 'WECARE_HEALTH') conditions.push({ code: 'EXCL_PRIOR_SURGERY', description: 'Conditions related to prior surgery are excluded' });
     if (id === 'WEPROTECT_CI') eligibility = 'REFERRED';
   }
 
@@ -126,7 +126,7 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
 
   // Maximum premium: never clamp — flag for review instead.
   if (premium > spec.priceMaxCny) {
-    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard maximum of ¥${spec.priceMaxCny}/month; referred for underwriting review` });
+    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard ¥${spec.priceMaxCny}/month maximum and is referred for underwriting review` });
     if (eligibility === 'STANDARD') eligibility = 'CONDITIONAL';
   }
 

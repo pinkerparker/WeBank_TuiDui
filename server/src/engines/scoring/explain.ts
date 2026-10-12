@@ -103,11 +103,12 @@ export function explain(
   if (s.V < 1) {
     const cappedByClass = u.conditions.some((c) => c.code === 'CAP_CLASS3');
     codes.push(cappedByClass ? 'V_CAPPED_BY_CLASS' : 'V_CAPPED');
-    lines.push(
-      cappedByClass
-        ? `Cover is capped at ${yuan(u.sumAssuredCny)} because of your occupation class.`
-        : `Cover is capped at ${yuan(u.sumAssuredCny)} by product limits.`,
-    );
+    // When capped by class, CAP_CLASS3's own description (shown above via U_CONDITIONAL)
+    // already states the amount and the reason — saying it again here would repeat the
+    // same fact twice. Only the generic catalog-max cap needs its own sentence.
+    if (!cappedByClass) {
+      lines.push(`Cover is capped at ${yuan(u.sumAssuredCny)} by product limits.`);
+    }
   }
 
   return { reasonCodes: codes, explanation: lines.join(' ') };
