@@ -96,7 +96,7 @@ describe('Engine 2/3 — edge cases', () => {
     expect(ci.eligibility).toBe('REFERRED'); // major_surgery refers CI regardless of the other two traits
   });
 
-  it('webankLoanBalanceCny: 0 (explicit literal, not omitted) floors WeLife Debt need at ¥200,000', async () => {
+  it('webankLoanBalanceCny: 0 (explicit literal, not omitted) floors WeLife Debt Shield need at ¥200,000', async () => {
     const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'DEBT', webankLoanBalanceCny: 0 };
     const { underwriting } = await runPipeline(profile);
     const debt = underwriting.find((u) => u.productId === 'WELIFE_DEBT')!;
@@ -219,7 +219,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(false);
   });
 
-  it('WeCare 1,000,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130)', async () => {
+  it('WeCare Health+ 1,000,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130)', async () => {
     // Defect #4 is fixed for the 1M tier only — see the next test for the 500k tier,
     // which is a known, accepted limitation (section 7 decision in RULEBOOK-CHANGES.md).
     const profile = { ...BASE_PROFILE, concern: 'MED' as const };
@@ -231,7 +231,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(at30.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
   });
 
-  it('WeCare 500,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
+  it('WeCare Health+ 500,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
     // Accepted limitation: the 500k tier needs its own rate tier to differentiate by
     // age (out of scope — catalog.ts is shared/read-only, and a sum-assured-tiered rate
     // table is more scope than "replace the age factor"). What the rate table DOES
