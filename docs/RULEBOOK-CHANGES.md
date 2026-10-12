@@ -1,7 +1,7 @@
 # Engine 2 / 3 — Rulebook Changes
 
 > Owner: **C** (Engine 2 underwriting + Engine 3 scoring/XAI)
-> Status: 🟡 In progress — update this document whenever a PR merges
+> Status: 🟢 Ready for review — all 4 stages done on `Nat-Engine2-3`, verified, no PR opened yet
 
 ---
 
@@ -61,19 +61,38 @@ R'   = (R - Rmin) / (Rmax - Rmin)      // Rmax === Rmin → R' = 1
 | exclusion | `EXCL_NCD`, `EXCL_PRIOR_SURGERY` | −0.15 |
 | pricing | `LOAD_SMOKER`, `LOAD_NCD`, `MIN_PREMIUM_APPLIED`, `PRICE_ABOVE_BAND` | 0 (already reflected in A) |
 
-**Expected P1 result:** 84 / 74 / 71 / 64 → approx. **100 / 69 / 59 / 40** (actual numbers after PR #3)
+**Expected P1 result:** 84 / 74 / 71 / 64 → approx. **100 / 69 / 59 / 40** — confirmed exact, see stage 3 changelog entry
 
 > ⚠️ R' depends on the whole CATALOG. Adding or removing a product shifts every score, so catalog changes are rulebook changes too.
 
-### XAI (PR #4)
+**Over-budget scaling (stage 3 fix)** — with A weighted only 0.20, being far over budget used to cost at most 20 points, letting an unaffordable-but-relevant product outscore an affordable recommendation (P5: WeCare 78% vs the recommended WeSafe Accident's 59%). Fix: if `monthlyPremiumCny` exceeds the same budget limit `score()` already uses to pick a recommendation (`1.1 × monthlyBudgetCny`), the weighted sum is multiplied by `limit / premium` before rounding. Within the limit, the factor is 1 (no-op); it is always `< 1` when it applies, so a score can never be increased by it. No new `SubScores` field — this scales the final `fitScore`, not any sub-score, and sort order is still by `fitScore`.
+
+### XAI (stage 4 — done)
 
 | Item | Before | After |
 |---|---|---|
-| Condition codes | Not propagated to `reasonCodes` | Every `Condition.code` mirrored into `reasonCodes` |
-| U | `U_STANDARD` / `U_CONDITIONAL` / `U_REFERRED` | Add `U_CAP_ONLY` (limitations only, no exclusions) |
-| V | `V_CAPPED` only | Split into `V_CAPPED` (catalog max) and `V_CAPPED_BY_CLASS` (Class 3 cap) |
+| Condition codes | Not propagated to `reasonCodes` | Every `Condition.code` (statutory + extra) mirrored into `reasonCodes`, in `u.conditions` order |
+| U | `U_STANDARD` / `U_CONDITIONAL` / `U_REFERRED` | Added `U_CAP_ONLY` — fires when the extra conditions contain a `limitation`-severity code and no `exclusion`-severity code |
+| V | `V_CAPPED` only | Split: `V_CAPPED_BY_CLASS` when `CAP_CLASS3` is present among the conditions, else `V_CAPPED` |
+| A (new, from the over-budget fix) | — | Added `A_OVER_BUDGET_SCALED` — fires when `monthlyPremiumCny` exceeds the `1.1×budget` limit (the same one the scaling factor and the recommendation gate use); explanation names the limit |
 
-`A_FLOOR` dropped (no clear definition); `MIN_PREMIUM_APPLIED` from Engine 2 replaces it.
+`A_FLOOR` dropped (no clear definition); `MIN_PREMIUM_APPLIED` from Engine 2 is mirrored into `reasonCodes` via the condition-code pass instead.
+
+**`severityOf`/`CONDITION_SEVERITY` moved to a new file, `scoring/severity.ts`** — both `index.ts` (U sub-score) and `explain.ts` (`U_CAP_ONLY`, `V_CAPPED_BY_CLASS`) import from there, avoiding a circular import between the two. `index.ts` still re-exports `CONDITION_SEVERITY` for anyone already importing it from there.
+
+**Final `reasonCodes` vocabulary** — exported as `REASON_CODES` from `scoring/explain.ts`, so the frontend can localise from codes alone without parsing English sentences:
+
+```
+R_HIGH_MED, R_HIGH_INC, R_HIGH_ACC, R_HIGH_DEBT, R_LOW,
+U_STANDARD, U_CONDITIONAL, U_REFERRED, U_CAP_ONLY,
+A_WITHIN_BUDGET, A_OVER_BUDGET, A_OVER_BUDGET_SCALED,
+V_CAPPED, V_CAPPED_BY_CLASS,
+EXCL_PRE_EXISTING, WAITING_90D, COVER_DAY_ONE, EXCL_SUICIDE_1Y,   // statutory, mirrored from catalog.ts
+CAP_CLASS3, WAITING_120D, EXCL_NCD, EXCL_PRIOR_SURGERY,           // non-statutory: limitation / exclusion
+LOAD_SMOKER, LOAD_NCD, MIN_PREMIUM_APPLIED, PRICE_ABOVE_BAND      // non-statutory: pricing
+```
+
+Deterministic fixed order per product: Relevance (R) -> Underwriting (U, incl. `U_CAP_ONLY`) -> every raw condition code (in `u.conditions` order) -> Affordability (A, incl. `A_OVER_BUDGET_SCALED`) -> Coverage (V). Same input always produces the same array.
 
 ---
 
@@ -91,12 +110,61 @@ R'   = (R - Rmin) / (Rmax - Rmin)      // Rmax === Rmin → R' = 1
 
 ## 4. Changes in `shared/`
 
+> 🔴 **URGENT** — PR #1 already merged stage 1 **and** stage 2 into `main` (see §5). Stage 2 changed every premium Engine 2 computes (new age-band rate table). `main` is right now serving real pricing under the OLD `RULEBOOK_VERSION` (`rulebook-2026.10-v0.1`) — audit entries written since that merge are **not distinguishable** from pre-stage-2 entries by version alone. The bump below needs to happen as soon as possible, ideally retroactively noted for the window between the PR #1 merge and whenever this bump actually lands.
+
 | Item | Before | After | Why |
 |---|---|---|---|
-| `RULEBOOK_VERSION` (`contracts.ts:25`) | `rulebook-2026.10-v0.1` | One bump covering PR #2–#4 | Audit replay can distinguish old vs new results |
-| `MOCK_RECOMMENDATION` | 94 / 72 / 58 / 35 (hand-written, inconsistent with the formula) | Real values after PR #3 | `dev:mock` matches production output |
+| `RULEBOOK_VERSION` (`contracts.ts:25`) | `rulebook-2026.10-v0.1` | One bump covering everything merged so far (stages 1–4) | Audit replay can distinguish old vs new results — **overdue as of the PR #1 merge** |
+| `MOCK_RECOMMENDATION` | 94 / 72 / 58 / 35 (hand-written, inconsistent with the formula) | **100 / 69 / 59 / 40** — real output as of stage 4, see full JSON below | `dev:mock` matches production output |
 
-Merge together with PR #3, or just before it.
+C does not edit `shared/` — D (or whoever owns the shared PR) applies this. Given the urgency above, don't wait for a "natural" batching point.
+
+**New `MOCK_RECOMMENDATION.products` values** (from `MOCK_PROFILE`, confirmed via `npm run sandbox`, current HEAD — unchanged by stage 4 or the explanation-polish pass, since P1's recommended product never triggers `REC_BEST_AFFORDABLE` or `PRICE_ABOVE_BAND`):
+
+```json
+[
+  {
+    "productId": "WECARE_HEALTH", "eligibility": "STANDARD",
+    "sumAssuredCny": 1000000, "sumAssuredNeedCny": 1000000, "monthlyPremiumCny": 142,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 30,
+    "conditions": [{ "code": "EXCL_PRE_EXISTING", "description": "Pre-existing conditions are not covered" }],
+    "fitScore": 100, "subScores": { "R": 1, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["R_HIGH_MED", "U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "Matches your main concern; WeCare Health+ covers up to ¥1,000,000. You qualify at the standard rate.",
+    "overBudget": false, "recommended": true
+  },
+  {
+    "productId": "WEPROTECT_CI", "eligibility": "STANDARD",
+    "sumAssuredCny": 360000, "sumAssuredNeedCny": 360000, "monthlyPremiumCny": 130,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 90,
+    "conditions": [{ "code": "WAITING_90D", "description": "90-day waiting period" }],
+    "fitScore": 69, "subScores": { "R": 0.48, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "You qualify at the standard rate.",
+    "overBudget": false, "recommended": false
+  },
+  {
+    "productId": "WESAFE_ACCIDENT", "eligibility": "STANDARD",
+    "sumAssuredCny": 200000, "sumAssuredNeedCny": 200000, "monthlyPremiumCny": 30,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 0,
+    "conditions": [{ "code": "COVER_DAY_ONE", "description": "Covered from day one, no health check" }],
+    "fitScore": 59, "subScores": { "R": 0.31, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "You qualify at the standard rate.",
+    "overBudget": false, "recommended": false
+  },
+  {
+    "productId": "WELIFE_DEBT", "eligibility": "STANDARD",
+    "sumAssuredCny": 200000, "sumAssuredNeedCny": 200000, "monthlyPremiumCny": 54,
+    "loadings": { "occupation": 0, "smoker": 0, "health": 0 }, "waitingPeriodDays": 0,
+    "conditions": [{ "code": "EXCL_SUICIDE_1Y", "description": "Suicide excluded in year 1" }],
+    "fitScore": 40, "subScores": { "R": 0, "A": 1, "U": 1, "V": 1, "E": 1 },
+    "reasonCodes": ["R_LOW", "U_STANDARD", "A_WITHIN_BUDGET"],
+    "explanation": "Only loosely related to the concern you selected. You qualify at the standard rate.",
+    "overBudget": false, "recommended": false
+  }
+]
+```
 
 ---
 
@@ -107,12 +175,12 @@ All work lives on C's personal branch, **`Nat-Engine2-3`** (team convention: one
 | # | Stage | Scope | Status |
 |---|---|---|---|
 | 0 | Baseline | Baseline + defect confirmation + code review | ✅ Done |
-| 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ Done |
-| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ Done |
-| 3 | Scoring | Normalised R + new weights + U by type + V guard | ⏳ |
-| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ⏳ |
+| 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ **Merged to `main` via PR #1** |
+| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ **Merged to `main` via PR #1** |
+| 3 | Scoring | Normalised R + new weights + U by type + V guard | ✅ Done, not yet merged |
+| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ✅ Done, not yet merged |
 
-Stages run in order: Scoring depends on the Rate table's premiums.
+Stages run in order: Scoring depends on the Rate table's premiums. PR #1 (stages 1–2) was opened and merged by someone else on the team, not by C — confirmed via `git log main..origin/main` on 2026-10-12; `main` currently runs the stage-2 pricing without the `RULEBOOK_VERSION` bump (see §4 urgent note). The next PR covers stages 3–4 plus the explanation-polish fixes below.
 
 ---
 
@@ -124,6 +192,9 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 - Two new condition codes in `conditions`: `MIN_PREMIUM_APPLIED`, `PRICE_ABOVE_BAND`
 - After PR #4, all condition codes appear in `reasonCodes`, enabling localisation from codes
 - No plan to emit `DECLINED` yet; will notify first (empty state already handled at `Results.tsx:29`)
+- **Resolved (was flagged, now fixed):** stage 3 briefly introduced a case where the `fitScore`-sorted top row and the `recommended` flag disagreed (P5: unaffordable WeCare at 78% outranking the recommended WeSafe Accident at 59%). Fixed same day by scaling over-budget fitScores — see §2/§7. P5 now sorts `recommended` on top (59%) with WeCare correctly down at 44%. No frontend change needed; flagging only so you know the invariant ("recommended is always the top-sorted row, when a recommendation exists") now holds and can be relied on
+- New reason code: `REC_BEST_AFFORDABLE` — fires on the recommended product when its own R isn't the single best concern-match (e.g. P5's WeSafe Accident, R=0.31, recommended because the better-matching WeCare is over budget). Explains the "why this, not the better match" question a user/judge would otherwise ask
+- **`ProfileForm` can't drive real test data for WeLife Debt Shield (or WeProtect CI's income-based sizing):** `CustomerProfile.annualIncomeCny`, `webankLoanBalanceCny`, and `dependants` are real fields in the shared contract and Engine 2 reads them, but `ProfileForm.tsx` never renders inputs for them — there's no chip, slider, or field for loan balance or income anywhere in the form. Any profile submitted through the actual UI always sends these as `undefined`, so WeLife Debt Shield's sizing always falls back to the ¥200,000 floor and WeProtect CI always falls back to the default ¥120,000-income tier, regardless of what a user might type elsewhere. Confirmed by driving the real app for personas P3/P4 — their on-screen numbers differ from the sandbox (which calls the API directly with the full profile) for exactly this reason. Worth adding these as real inputs if the contest demo relies on WeLife Debt Shield's loan-driven sizing being visibly correct
 
 ### B — Engine 1
 - No action needed. Engine 3 normalises R itself and does not depend on needVector tuning
@@ -152,6 +223,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 | `PRICE_ABOVE_BAND` | Engine 2 half in PR #2, surfacing in PR #4 |
 | WeCare 500k tier (primary≠MED) still floors flat across all ages | Accepted as a known limitation, not fixed in stage 2. `catalog.ts` (shared) is read-only, and a sum-assured-tiered rate table (separate rates per sum-assured tier, not just per age) is more scope than "replace the age factor." The floor is still disclosed via `MIN_PREMIUM_APPLIED`, just not age-differentiated. Revisit only if the team wants to invest in a tiered rate table later |
 | WeProtect CI base rate calibration | Calibrate bands 1-3 to match the old per-age rate almost exactly (never historically out of band there); compress only bands 4-5 enough to clear `priceMaxCny` at the reference sum assured (¥360,000). A loaded premium (smoker/NCD) or an income-driven higher sum assured (¥400,000) exceeding the band is allowed by design — disclosed via `PRICE_ABOVE_BAND`, not suppressed by lowering the rate further |
+| Over-budget products outranking the recommendation | Over-budget products are scaled by `budgetLimit / premium` so they never outrank an affordable recommendation. Applied to the weighted sum before rounding, using the same `1.1 × monthlyBudgetCny` limit `score()` already gates recommendation on — not a new budget rule, just making the existing one bite on the score too |
 
 ## 8. Open Questions
 
@@ -164,6 +236,11 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 
 ## Changelog
 
+- 2026-10-12 — Follow-up fixes after discovering PR #1 (stages 1-2) was already merged to `main` by someone else on the team. Explanations: added `REC_BEST_AFFORDABLE` — fires on the recommended product when its own R isn't the best concern-match (P5 WeSafe Accident, R=0.31), explaining that better-matching options are over budget. Fixed `PRICE_ABOVE_BAND`'s description, which said "referred for underwriting review" while the actual eligibility set is `CONDITIONAL`, not `REFERRED` — now reads "so this quote is conditional." Fixed two test titles using "WeLife Debt"/"WeCare" instead of the catalog's official "WeLife Debt Shield"/"WeCare Health+". No fitScore/sub-score change (confirmed via the snapshot test + `npm run sandbox`). Docs: §5 marks stages 1-2 as merged via PR #1; §4 flags urgently that `main` is serving the new stage-2 pricing without a `RULEBOOK_VERSION` bump; §6 tells A that `ProfileForm` has no inputs for `annualIncomeCny`/`webankLoanBalanceCny`/`dependants`, so WeLife Debt Shield's loan-driven sizing can't be demoed through the real UI as-is.
+- 2026-10-12 — Final wrap-up. (1) Explanation polish: removed a duplicate "capped at ¥X because of your occupation class" sentence in `explain.ts` (the fact was already stated via `CAP_CLASS3`'s own description, shown through `U_CONDITIONAL` — now shown once); fixed two condition-description strings at their source in `underwriting/index.ts` (`EXCL_PRIOR_SURGERY`: "Condition related to prior surgery excluded" -> "Conditions related to prior surgery are excluded"; `PRICE_ABOVE_BAND`: removed an internal semicolon that read as two separate list items once joined with other conditions). All 20 persona×product explanations reviewed and printed in the PR report — no remaining duplicates or run-ons found. No fitScore/sub-score change. (2) Synced with `main`: a PR (#1) merging this branch through the stage-2 fix had already been merged into `main` outside of this work (not opened by C) — `git fetch` + `git merge origin/main` was a no-op, no conflicts, since `Nat-Engine2-3`'s history is a strict superset. (3) Full verification: clean `node_modules` reinstall, `npm test`/`typecheck`/`sandbox` all green, audit chain valid. Drove the real app (not `dev:mock`) through all 5 personas with a Playwright script — confirmed the recommended product renders as the top card for every persona, `MIN_PREMIUM_APPLIED`/`PRICE_ABOVE_BAND` display correctly in the comparison table, and explanation text (including P2's 3-line paragraph) doesn't break card layout. Screenshots taken for all 5. Two personas (P3, P4) can only be approximated through the UI — `ProfileForm` doesn't expose `annualIncomeCny`/`webankLoanBalanceCny`/`dependants`, so their on-screen numbers use defaults instead of the persona's actual income/loan figures; this is a UI-coverage gap, not an engine defect (confirmed by comparing against a direct API call, which matches the sandbox exactly). `git diff --stat main...Nat-Engine2-3` confirmed only the 6 allowed files are touched. Status set to ready for review.
+- 2026-10-08 — Stage 4 (XAI) done, last code stage. Every `Condition.code` (statutory + extra) mirrored into `reasonCodes`. Added `U_CAP_ONLY` (limitations only, no exclusions among the extra conditions), split `V_CAPPED_BY_CLASS` (CAP_CLASS3 present) from plain `V_CAPPED` (catalog max), added `A_OVER_BUDGET_SCALED` for the stage-3 over-budget fix (explanation names the budget limit). Full vocabulary exported as `REASON_CODES` from `scoring/explain.ts` — see §2. Moved `CONDITION_SEVERITY`/`conditionPenalty` to a new `scoring/severity.ts` to avoid a circular import between `index.ts` and `explain.ts` (both now import from there; `index.ts` still re-exports `CONDITION_SEVERITY`). No change to Engine 2 or to any fitScore/sub-score — confirmed via an exact fitScore snapshot test across all 5 personas, matching the last report precisely (P1 100/69/59/40, P2 95/70/40/37, P3 100/60/44/40, P4 99/43/42/40, P5 59/44/40/11).
+- 2026-10-08 — Stage 3 fix: over-budget products could outscore the recommendation (P5: unaffordable WeCare 78% > recommended WeSafe Accident 59% — a real defect, not just a display nuance, since A's 0.20 weight only cost 20 points for being unaffordable). Fixed by scaling the weighted sum by `budgetLimit/premium` (1.1× the customer's budget, the same limit `score()` already uses to pick a recommendation) whenever premium exceeds it, applied before rounding. P5 WeCare 78->44, P2 WeProtect CI 41->37 (also over its limit); every other cell unchanged, P1 still exactly 100/69/59/40. New invariant test: no non-recommended product may outscore the recommended one, holds for all 5 personas.
+- 2026-10-08 — Stage 3 (Scoring) done. Weights -> R 0.60/A 0.20/U 0.10/V 0.10. R min-max normalised over CATALOG (`Rmax === Rmin` guarded to 1). U moved from a flat −0.15/condition to a severity table (`CONDITION_SEVERITY` + `U_PENALTY`, exported as one constant each) — limitation −0.05, exclusion −0.15, pricing 0, unknown code defaults to exclusion. V guarded explicitly (`sumAssuredNeedCny <= 0 -> V = 1`) instead of relying on `min(1, Infinity)`. P1 confirmed exactly at the predicted 100/69/59/40. The `recommended` winner is unchanged for all 5 personas, but P5 now has a mismatch between the fitScore-sorted top row (WeCare, 78, fails the budget-limit gate) and the `recommended` row (WeSafe Accident, 59) — flagged for A in §6, pre-existing gate logic, newly visible because of the R weight increase. New `MOCK_RECOMMENDATION` values for D recorded in §4 (not applied — `shared/` is read-only for C).
 - 2026-10-08 — Stage 2 follow-up: WeProtect CI rate table was over-corrected (all 5 bands cut ~45-57%, not just the one out-of-band case). Recalibrated: bands 1-3 now match the old per-age rate almost exactly (¥130/¥200/¥223 for P1/P3/P2, vs the ¥72/¥96/¥223 first attempt), only bands 4-5 compressed to clear `priceMaxCny` at the reference sum assured. P2's loaded premium (¥363) is now allowed to exceed the band again — correctly disclosed via `CONDITIONAL` + `PRICE_ABOVE_BAND` instead of either silently exceeding (the original bug) or being artificially suppressed (the first fix attempt). Also: WeCare's defect #4 fix is confirmed to only apply to the 1,000,000 tier (primary=MED); the 500k tier's flat floor is recorded as a known, accepted limitation (§7) rather than fixed.
 - 2026-10-08 — Stage 2 (Rate table) done. Linear `ageFactor` replaced by 5 age bands per product (18-29/30-39/40-49/50-59/60-65), calibrated against each product's standard reference sum assured. Occupation loading untouched. `MIN_PREMIUM_APPLIED` and `PRICE_ABOVE_BAND` conditions added — floor stays, ceiling never clamps. All 3 stage-1 `it.fails` flipped to passing; `npm run sandbox` confirms premiums and WECARE_HEALTH recommendation (see PR report for full before/after table). Known tradeoff: the 500k WeCare tier (non-MED primary) still floors for most personas — the rate table was calibrated against the 1,000,000 reference tier, since tuning for both tiers at once runs into the priceMaxCny ceiling on the high end; flagged for team visibility, not fixed here.
 - 2026-10-07 — Stage 1 (Tests) moved onto `Nat-Engine2-3` per team convention (one branch per member); `c/uw-edge-tests` retired
