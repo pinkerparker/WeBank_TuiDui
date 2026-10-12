@@ -110,14 +110,16 @@ Deterministic fixed order per product: Relevance (R) -> Underwriting (U, incl. `
 
 ## 4. Changes in `shared/`
 
+> 🔴 **URGENT** — PR #1 already merged stage 1 **and** stage 2 into `main` (see §5). Stage 2 changed every premium Engine 2 computes (new age-band rate table). `main` is right now serving real pricing under the OLD `RULEBOOK_VERSION` (`rulebook-2026.10-v0.1`) — audit entries written since that merge are **not distinguishable** from pre-stage-2 entries by version alone. The bump below needs to happen as soon as possible, ideally retroactively noted for the window between the PR #1 merge and whenever this bump actually lands.
+
 | Item | Before | After | Why |
 |---|---|---|---|
-| `RULEBOOK_VERSION` (`contracts.ts:25`) | `rulebook-2026.10-v0.1` | One bump covering PR #2–#4 | Audit replay can distinguish old vs new results |
-| `MOCK_RECOMMENDATION` | 94 / 72 / 58 / 35 (hand-written, inconsistent with the formula) | **100 / 69 / 59 / 40** — real output as of stage 3, see full JSON below | `dev:mock` matches production output |
+| `RULEBOOK_VERSION` (`contracts.ts:25`) | `rulebook-2026.10-v0.1` | One bump covering everything merged so far (stages 1–4) | Audit replay can distinguish old vs new results — **overdue as of the PR #1 merge** |
+| `MOCK_RECOMMENDATION` | 94 / 72 / 58 / 35 (hand-written, inconsistent with the formula) | **100 / 69 / 59 / 40** — real output as of stage 4, see full JSON below | `dev:mock` matches production output |
 
-Merge together with PR #3, or just before it. C does not edit `shared/` — D (or whoever owns the shared PR) applies this.
+C does not edit `shared/` — D (or whoever owns the shared PR) applies this. Given the urgency above, don't wait for a "natural" batching point.
 
-**New `MOCK_RECOMMENDATION.products` values** (from `MOCK_PROFILE`, confirmed via `npm run sandbox`, stage 3 HEAD):
+**New `MOCK_RECOMMENDATION.products` values** (from `MOCK_PROFILE`, confirmed via `npm run sandbox`, current HEAD — unchanged by stage 4 or the explanation-polish pass, since P1's recommended product never triggers `REC_BEST_AFFORDABLE` or `PRICE_ABOVE_BAND`):
 
 ```json
 [
@@ -173,12 +175,12 @@ All work lives on C's personal branch, **`Nat-Engine2-3`** (team convention: one
 | # | Stage | Scope | Status |
 |---|---|---|---|
 | 0 | Baseline | Baseline + defect confirmation + code review | ✅ Done |
-| 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ Done |
-| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ Done |
-| 3 | Scoring | Normalised R + new weights + U by type + V guard | ✅ Done |
-| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ✅ Done |
+| 1 | Tests | New tests in `server/tests/engines.test.ts` + this document | ✅ **Merged to `main` via PR #1** |
+| 2 | Rate table | Age-band rate table + `MIN_PREMIUM_APPLIED` / `PRICE_ABOVE_BAND` in Engine 2 | ✅ **Merged to `main` via PR #1** |
+| 3 | Scoring | Normalised R + new weights + U by type + V guard | ✅ Done, not yet merged |
+| 4 | XAI | Propagate condition codes + `U_CAP_ONLY` + `V_CAPPED_BY_CLASS` | ✅ Done, not yet merged |
 
-Stages run in order: Scoring depends on the Rate table's premiums.
+Stages run in order: Scoring depends on the Rate table's premiums. PR #1 (stages 1–2) was opened and merged by someone else on the team, not by C — confirmed via `git log main..origin/main` on 2026-10-12; `main` currently runs the stage-2 pricing without the `RULEBOOK_VERSION` bump (see §4 urgent note). The next PR covers stages 3–4 plus the explanation-polish fixes below.
 
 ---
 
@@ -191,6 +193,8 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 - After PR #4, all condition codes appear in `reasonCodes`, enabling localisation from codes
 - No plan to emit `DECLINED` yet; will notify first (empty state already handled at `Results.tsx:29`)
 - **Resolved (was flagged, now fixed):** stage 3 briefly introduced a case where the `fitScore`-sorted top row and the `recommended` flag disagreed (P5: unaffordable WeCare at 78% outranking the recommended WeSafe Accident at 59%). Fixed same day by scaling over-budget fitScores — see §2/§7. P5 now sorts `recommended` on top (59%) with WeCare correctly down at 44%. No frontend change needed; flagging only so you know the invariant ("recommended is always the top-sorted row, when a recommendation exists") now holds and can be relied on
+- New reason code: `REC_BEST_AFFORDABLE` — fires on the recommended product when its own R isn't the single best concern-match (e.g. P5's WeSafe Accident, R=0.31, recommended because the better-matching WeCare is over budget). Explains the "why this, not the better match" question a user/judge would otherwise ask
+- **`ProfileForm` can't drive real test data for WeLife Debt Shield (or WeProtect CI's income-based sizing):** `CustomerProfile.annualIncomeCny`, `webankLoanBalanceCny`, and `dependants` are real fields in the shared contract and Engine 2 reads them, but `ProfileForm.tsx` never renders inputs for them — there's no chip, slider, or field for loan balance or income anywhere in the form. Any profile submitted through the actual UI always sends these as `undefined`, so WeLife Debt Shield's sizing always falls back to the ¥200,000 floor and WeProtect CI always falls back to the default ¥120,000-income tier, regardless of what a user might type elsewhere. Confirmed by driving the real app for personas P3/P4 — their on-screen numbers differ from the sandbox (which calls the API directly with the full profile) for exactly this reason. Worth adding these as real inputs if the contest demo relies on WeLife Debt Shield's loan-driven sizing being visibly correct
 
 ### B — Engine 1
 - No action needed. Engine 3 normalises R itself and does not depend on needVector tuning
@@ -232,6 +236,7 @@ Stages run in order: Scoring depends on the Rate table's premiums.
 
 ## Changelog
 
+- 2026-10-12 — Follow-up fixes after discovering PR #1 (stages 1-2) was already merged to `main` by someone else on the team. Explanations: added `REC_BEST_AFFORDABLE` — fires on the recommended product when its own R isn't the best concern-match (P5 WeSafe Accident, R=0.31), explaining that better-matching options are over budget. Fixed `PRICE_ABOVE_BAND`'s description, which said "referred for underwriting review" while the actual eligibility set is `CONDITIONAL`, not `REFERRED` — now reads "so this quote is conditional." Fixed two test titles using "WeLife Debt"/"WeCare" instead of the catalog's official "WeLife Debt Shield"/"WeCare Health+". No fitScore/sub-score change (confirmed via the snapshot test + `npm run sandbox`). Docs: §5 marks stages 1-2 as merged via PR #1; §4 flags urgently that `main` is serving the new stage-2 pricing without a `RULEBOOK_VERSION` bump; §6 tells A that `ProfileForm` has no inputs for `annualIncomeCny`/`webankLoanBalanceCny`/`dependants`, so WeLife Debt Shield's loan-driven sizing can't be demoed through the real UI as-is.
 - 2026-10-12 — Final wrap-up. (1) Explanation polish: removed a duplicate "capped at ¥X because of your occupation class" sentence in `explain.ts` (the fact was already stated via `CAP_CLASS3`'s own description, shown through `U_CONDITIONAL` — now shown once); fixed two condition-description strings at their source in `underwriting/index.ts` (`EXCL_PRIOR_SURGERY`: "Condition related to prior surgery excluded" -> "Conditions related to prior surgery are excluded"; `PRICE_ABOVE_BAND`: removed an internal semicolon that read as two separate list items once joined with other conditions). All 20 persona×product explanations reviewed and printed in the PR report — no remaining duplicates or run-ons found. No fitScore/sub-score change. (2) Synced with `main`: a PR (#1) merging this branch through the stage-2 fix had already been merged into `main` outside of this work (not opened by C) — `git fetch` + `git merge origin/main` was a no-op, no conflicts, since `Nat-Engine2-3`'s history is a strict superset. (3) Full verification: clean `node_modules` reinstall, `npm test`/`typecheck`/`sandbox` all green, audit chain valid. Drove the real app (not `dev:mock`) through all 5 personas with a Playwright script — confirmed the recommended product renders as the top card for every persona, `MIN_PREMIUM_APPLIED`/`PRICE_ABOVE_BAND` display correctly in the comparison table, and explanation text (including P2's 3-line paragraph) doesn't break card layout. Screenshots taken for all 5. Two personas (P3, P4) can only be approximated through the UI — `ProfileForm` doesn't expose `annualIncomeCny`/`webankLoanBalanceCny`/`dependants`, so their on-screen numbers use defaults instead of the persona's actual income/loan figures; this is a UI-coverage gap, not an engine defect (confirmed by comparing against a direct API call, which matches the sandbox exactly). `git diff --stat main...Nat-Engine2-3` confirmed only the 6 allowed files are touched. Status set to ready for review.
 - 2026-10-08 — Stage 4 (XAI) done, last code stage. Every `Condition.code` (statutory + extra) mirrored into `reasonCodes`. Added `U_CAP_ONLY` (limitations only, no exclusions among the extra conditions), split `V_CAPPED_BY_CLASS` (CAP_CLASS3 present) from plain `V_CAPPED` (catalog max), added `A_OVER_BUDGET_SCALED` for the stage-3 over-budget fix (explanation names the budget limit). Full vocabulary exported as `REASON_CODES` from `scoring/explain.ts` — see §2. Moved `CONDITION_SEVERITY`/`conditionPenalty` to a new `scoring/severity.ts` to avoid a circular import between `index.ts` and `explain.ts` (both now import from there; `index.ts` still re-exports `CONDITION_SEVERITY`). No change to Engine 2 or to any fitScore/sub-score — confirmed via an exact fitScore snapshot test across all 5 personas, matching the last report precisely (P1 100/69/59/40, P2 95/70/40/37, P3 100/60/44/40, P4 99/43/42/40, P5 59/44/40/11).
 - 2026-10-08 — Stage 3 fix: over-budget products could outscore the recommendation (P5: unaffordable WeCare 78% > recommended WeSafe Accident 59% — a real defect, not just a display nuance, since A's 0.20 weight only cost 20 points for being unaffordable). Fixed by scaling the weighted sum by `budgetLimit/premium` (1.1× the customer's budget, the same limit `score()` already uses to pick a recommendation) whenever premium exceeds it, applied before rounding. P5 WeCare 78->44, P2 WeProtect CI 41->37 (also over its limit); every other cell unchanged, P1 still exactly 100/69/59/40. New invariant test: no non-recommended product may outscore the recommended one, holds for all 5 personas.
