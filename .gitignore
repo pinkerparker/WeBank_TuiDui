@@ -3,3 +3,5 @@ dist/
 logs/*.json
 logs/*.jsonl
 .env
+.claude/settings.json
+server/data/*.json

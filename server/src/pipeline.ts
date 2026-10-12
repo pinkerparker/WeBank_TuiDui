@@ -6,11 +6,10 @@ import { randomUUID } from 'node:crypto';
 import type { CustomerProfile, RecommendationResponse } from '@insightshield/shared';
 import { RULEBOOK_VERSION } from '@insightshield/shared';
 import { audit } from './audit';
+import { sessions } from './store/persistence';
 import { translateConcern } from './engines/concern';
 import { prescreen } from './engines/underwriting';
 import { score } from './engines/scoring';
-
-const sessions = new Map<string, RecommendationResponse>();
 
 export async function recommend(profile: CustomerProfile, sessionId: string = randomUUID()): Promise<RecommendationResponse> {
   audit(sessionId, 'SESSION_START', { profile, rulebookVersion: RULEBOOK_VERSION });
@@ -32,7 +31,9 @@ export async function recommend(profile: CustomerProfile, sessionId: string = ra
     concern,
     products,
   };
-  sessions.set(sessionId, response);
+  // Persist before returning so a subsequent getSession() can find it,
+  // including after process restart.
+  await sessions.set(sessionId, response);
   return response;
 }
 

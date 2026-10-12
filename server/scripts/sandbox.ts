@@ -17,7 +17,7 @@ for (const persona of PERSONAS) {
   const rec = await recommend(persona.profile, sessionId);
   const top = rec.products.find((p) => p.recommended);
   const bind = top
-    ? bindPolicy({ sessionId, productId: top.productId, consentId: `consent-${persona.id}`, idempotencyKey: `idem-${sessionId}` }, rec)
+    ? await bindPolicy({ sessionId, productId: top.productId, consentId: `consent-${persona.id}`, idempotencyKey: `idem-${sessionId}` }, rec)
     : null;
 
   console.log(`\n=== ${persona.id} · ${persona.label} ===`);

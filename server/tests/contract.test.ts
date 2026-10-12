@@ -2,6 +2,7 @@
  * CONTRACT TESTS — run `npm test` before every merge.
  * If these pass, the pieces fit together. Each owner adds tests for their own engine.
  */
+import './setupEnv';
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { CATALOG, CONCERN_CODES, MOCK_PROFILE, PERSONAS, RULEBOOK_VERSION } from '@insightshield/shared';

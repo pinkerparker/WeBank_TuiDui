@@ -24,10 +24,10 @@ app.post(API.recommendations, async (req, res) => {
   res.json(await recommend(parsed.data));
 });
 
-app.post(API.bind, (req, res) => {
+app.post(API.bind, async (req, res) => {
   const parsed = bindSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const result = bindPolicy(parsed.data, getSession(parsed.data.sessionId));
+  const result = await bindPolicy(parsed.data, getSession(parsed.data.sessionId));
   res.status(result.status === 'ISSUED' ? 200 : 422).json(result);
 });
 
