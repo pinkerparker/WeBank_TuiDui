@@ -5,10 +5,10 @@ import { SUBSCORE_LABEL, T } from '../i18n';
 import { formatUsd } from '../money';
 import { ApplyButton, MatchBar, StatusPill } from './Results';
 
-type Props = { rec: RecommendationResponse; productId: ProductId; onClose: () => void };
+type Props = { rec: RecommendationResponse; productId: ProductId; onClose: () => void; onApply: (id: ProductId) => void };
 
 /** Plan details as a native modal dialog: bottom sheet on mobile, centred panel on desktop. */
-export function PlanDetails({ rec, productId, onClose }: Props) {
+export function PlanDetails({ rec, productId, onClose, onApply }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -87,7 +87,7 @@ export function PlanDetails({ rec, productId, onClose }: Props) {
         </section>
 
         <footer className="sheet-foot">
-          <ApplyButton key={rec.sessionId} rec={rec} p={p} />
+          <ApplyButton p={p} onApply={onApply} />
         </footer>
       </div>
     </dialog>

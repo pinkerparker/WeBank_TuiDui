@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import type { BindResult, Eligibility, ProductId, RecommendationResponse, ScoredProduct } from '@insightshield/shared';
+import type { Eligibility, ProductId, RecommendationResponse, ScoredProduct } from '@insightshield/shared';
 import { CATALOG } from '@insightshield/shared';
-import { bind } from '../api/client';
 import { ELIGIBILITY_LABEL, T } from '../i18n';
 import { formatUsd } from '../money';
 
@@ -20,37 +18,19 @@ export function MatchBar({ score, top }: { score: number; top: boolean }) {
   );
 }
 
-/** Apply button with its own bind state. Remount (key) per session so a new quote resets it. */
-export function ApplyButton({ rec, p }: { rec: RecommendationResponse; p: ScoredProduct }) {
-  const [state, setState] = useState<'idle' | 'busy' | BindResult>('idle');
-
-  const onBuy = async () => {
-    setState('busy');
-    const res = await bind({
-      sessionId: rec.sessionId,
-      productId: p.productId,
-      consentId: `consent-${rec.sessionId}`,
-      idempotencyKey: `idem-${rec.sessionId}-${p.productId}`,
-    });
-    setState(res);
-  };
-
-  if (typeof state === 'object') {
-    return (
-      <p className={state.status === 'ISSUED' ? 'notice ok' : 'notice err'}>
-        {state.status === 'ISSUED' ? `${T.issued}: ${state.policyNumber}` : state.message}
-      </p>
-    );
-  }
-  const declined = p.eligibility === 'DECLINED';
+/** Starts the consent flow. REFERRED and DECLINED plans can't be issued online. */
+export function ApplyButton({ p, onApply }: { p: ScoredProduct; onApply: (id: ProductId) => void }) {
+  const blocked = p.eligibility === 'DECLINED' || p.eligibility === 'REFERRED';
   return (
-    <button className="btn-primary" onClick={onBuy} disabled={declined || state === 'busy'}>
-      {state === 'busy' ? T.buying : declined ? T.notEligible : T.buy}
+    <button className="btn-primary" onClick={() => onApply(p.productId)} disabled={blocked}>
+      {p.eligibility === 'DECLINED' ? T.notEligible : p.eligibility === 'REFERRED' ? T.needsReview : T.buy}
     </button>
   );
 }
 
-export function RecommendedCard({ rec, onDetails }: { rec: RecommendationResponse; onDetails: (id: ProductId) => void }) {
+export function RecommendedCard({ rec, onDetails, onApply }: {
+  rec: RecommendationResponse; onDetails: (id: ProductId) => void; onApply: (id: ProductId) => void;
+}) {
   const top = rec.products.find((p) => p.recommended);
   if (!top) return null;
   const spec = CATALOG[top.productId];
@@ -76,7 +56,7 @@ export function RecommendedCard({ rec, onDetails }: { rec: RecommendationRespons
 
       <div className="actions">
         <button className="btn-secondary" onClick={() => onDetails(top.productId)}>{T.viewDetails}</button>
-        <ApplyButton key={rec.sessionId} rec={rec} p={top} />
+        <ApplyButton p={top} onApply={onApply} />
       </div>
     </article>
   );
@@ -110,7 +90,7 @@ function PlanCard({ p, onDetails }: { p: ScoredProduct; onDetails: (id: ProductI
 
 export function PlanList({ rec, onDetails }: { rec: RecommendationResponse; onDetails: (id: ProductId) => void }) {
   return (
-    <section className="card">
+    <section className="plan-section">
       <h3>{T.comparePlans}</h3>
       <p className="muted">{T.sortedByMatch}</p>
       <ul className="plans">{rec.products.map((p) => <PlanCard key={p.productId} p={p} onDetails={onDetails} />)}</ul>
