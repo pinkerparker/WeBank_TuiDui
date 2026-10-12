@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { CATALOG, CONCERN_CODES, MOCK_PROFILE, PERSONAS } from '@insightshield/shared';
+import { CATALOG, CONCERN_CODES, MOCK_PROFILE, PERSONAS, RULEBOOK_VERSION } from '@insightshield/shared';
 import { translateConcern } from '../src/engines/concern';
 import { prescreen } from '../src/engines/underwriting';
 import { score } from '../src/engines/scoring';
@@ -86,5 +86,16 @@ describe('API + binding + audit (D)', () => {
   it('rejects invalid input', async () => {
     const res = await request(app).post('/api/v1/recommendations').send({ ...MOCK_PROFILE, age: 5 });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('API health (D)', () => {
+  it('GET /healthz returns ok, uptime, and the live rulebook version', async () => {
+    const r = await request(app).get('/healthz');
+    expect(r.status).toBe(200);
+    expect(r.body.status).toBe('ok');
+    expect(typeof r.body.uptime).toBe('number');
+    expect(r.body.uptime).toBeGreaterThanOrEqual(0);
+    expect(r.body.rulebookVersion).toBe(RULEBOOK_VERSION);
   });
 });
