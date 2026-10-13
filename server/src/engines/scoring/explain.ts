@@ -17,7 +17,7 @@ import type { ConcernCode, CustomerProfile, SubScores, UnderwritingResult } from
 import { CATALOG, CONCERN_CODES } from '@insightshield/shared';
 import { CONDITION_SEVERITY, severityOf } from './severity';
 
-const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+const usd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 
 /** Every raw Condition.code Engine 2 can emit — statutory (per product) + non-statutory. */
 const ALL_CONDITION_CODES = [
@@ -65,7 +65,7 @@ export function explain(
     lines.push(`Matches your main concern; ${spec.name} covers up to ${usd(u.sumAssuredUsd)}.`);
   } else if (s.R < 0.2) {
     codes.push('R_LOW');
-    lines.push('Only loosely related to the concern you selected.');
+    lines.push('Only loosely related to your main concern.');
   }
 
   // 2. Underwriting (U)

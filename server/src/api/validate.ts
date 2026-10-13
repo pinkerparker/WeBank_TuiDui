@@ -9,7 +9,7 @@ export const profileSchema = z.object({
   smoker: z.boolean(),
   concern: z.enum(['MED', 'INC', 'ACC', 'DEBT']),
   concernText: z.string().max(500).optional(),
-  monthlyBudgetUsd: z.number().min(3).max(700),
+  monthlyBudgetUsd: z.number().min(3).max(704),
   annualIncomeUsd: z.number().min(0).optional(),
   dependants: z.number().int().min(0).max(10).optional(),
   webankLoanBalanceUsd: z.number().min(0).optional(),

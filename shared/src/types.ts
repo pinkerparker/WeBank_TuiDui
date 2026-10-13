@@ -2,7 +2,7 @@
  * ============================================================
  *  SHARED CONTRACT — ทุกคนใช้ไฟล์นี้ร่วมกัน
  *  ห้ามแก้โดยไม่แจ้งทีมก่อน (เปิด PR + ให้ทุกคน approve)
- *  All money values are in USD (US dollars).
+ *  All money values are in USD (United States Dollar).
  * ============================================================
  */
 

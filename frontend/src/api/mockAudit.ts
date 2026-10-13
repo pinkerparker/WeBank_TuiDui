@@ -18,7 +18,7 @@ export function mockAudit(sessionId: string): AuditResponse {
   const events: [AuditEntry['event'], unknown][] = [
     ['SESSION_START', { profile: MOCK_PROFILE, rulebookVersion: rec.rulebookVersion }],
     ['CONCERN_TRANSLATED', rec.concern],
-    ['UNDERWRITING_DONE', rec.products.map(({ productId, eligibility, sumAssuredCny, monthlyPremiumCny, conditions }) => ({ productId, eligibility, sumAssuredCny, monthlyPremiumCny, conditions }))],
+    ['UNDERWRITING_DONE', rec.products.map(({ productId, eligibility, sumAssuredUsd, monthlyPremiumUsd, conditions }) => ({ productId, eligibility, sumAssuredUsd, monthlyPremiumUsd, conditions }))],
     ['SCORED', rec.products.map(({ productId, fitScore, subScores, reasonCodes, recommended }) => ({ productId, fitScore, subScores, reasonCodes, recommended }))],
     ['BIND_REQUESTED', { productId: MOCK_BIND_RESULT.productId, consentId: `consent-${sessionId}` }],
     ['POLICY_ISSUED', MOCK_BIND_RESULT],

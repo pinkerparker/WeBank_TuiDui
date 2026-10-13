@@ -10,11 +10,17 @@ import { CATALOG, PRODUCT_IDS } from '@insightshield/shared';
  * Monthly rate per 1,000 USD of sum assured, by age band.
  * Bands: [18-29, 30-39, 40-49, 50-59, 60-65]. Replaces the old linear ageFactor.
  * Calibrated so that, at each product's standard reference sum assured
- * (WECARE_HEALTH $140,000 — the MED-primary tier; WEPROTECT_CI $50,400 — the
+ * (WECARE_HEALTH $141,000 — the MED-primary tier; WEPROTECT_CI $51,000 — the
  * default-income tier; WESAFE_ACCIDENT $28,000; WELIFE_DEBT $28,000 — the
  * no-loan tier), the unloaded base premium stays within [priceMinUsd, priceMaxUsd]
  * for every band and every gender. WESAFE_ACCIDENT is intentionally flat — it is
  * not age-rated (unchanged from before). Occupation loading is untouched.
+ *
+ * A rate per 1,000 units of currency is a dimensionless ratio, so these numbers are
+ * unchanged by the CNY -> USD migration as long as sum assured and premium both move
+ * with the same catalog (which they do). Only the sum-assured rounding step changed
+ * (nearest $1,000 instead of nearest ¥10,000), which is why small fitScore shifts are
+ * expected and accepted — see RULEBOOK-CHANGES.md §7.
  *
  * WEPROTECT_CI specifically: bands 1-3 reproduce the old per-age rate almost
  * exactly (it was never out of band there — the only historical base-only
@@ -58,9 +64,9 @@ function genderFactor(id: ProductId, gender: CustomerProfile['gender']): number 
 function sumAssuredNeed(id: ProductId, p: CustomerProfile, primary: string): number {
   switch (id) {
     case 'WECARE_HEALTH':
-      return primary === 'MED' ? 140_000 : 70_000;
+      return primary === 'MED' ? 141_000 : 70_000;
     case 'WEPROTECT_CI':
-      return (p.annualIncomeUsd ?? 16_800) * 3; // 3 years of income
+      return (p.annualIncomeUsd ?? 17_000) * 3; // 3 years of income
     case 'WESAFE_ACCIDENT':
       return 28_000;
     case 'WELIFE_DEBT':
@@ -112,9 +118,9 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
   const extra = conditions.length - spec.statutoryConditions.length;
   if (eligibility === 'STANDARD' && extra > 0) eligibility = 'CONDITIONAL';
 
-  // Dimension 5 + sizing: clamp to catalog range, round to 1,400 (the old 10,000 CNY step)
+  // Dimension 5 + sizing: clamp to catalog range, round to the nearest $1,000
   const need = sumAssuredNeed(id, p, primary);
-  const sa = roundTo(clamp(need, spec.sumAssuredMinUsd, saMax), 1_400);
+  const sa = roundTo(clamp(need, spec.sumAssuredMinUsd, saMax), 1_000);
 
   // Dimension 1: base premium from demographics, then loadings
   const base = (sa / 1000) * ageBandRate(id, p.age) * genderFactor(id, p.gender);
@@ -122,13 +128,13 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
 
   // Minimum premium: keep the floor, but never apply it silently.
   if (loaded < spec.priceMinUsd) {
-    conditions.push({ code: 'MIN_PREMIUM_APPLIED', description: `Minimum premium of ${money(spec.priceMinUsd)}/month applied` });
+    conditions.push({ code: 'MIN_PREMIUM_APPLIED', description: `Minimum premium of $${spec.priceMinUsd}/month applied` });
   }
-  const premium = toCents(Math.max(loaded, spec.priceMinUsd));
+  const premium = Math.round(Math.max(loaded, spec.priceMinUsd));
 
   // Maximum premium: never clamp — flag for review instead.
   if (premium > spec.priceMaxUsd) {
-    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard ${money(spec.priceMaxUsd)}/month maximum, so this quote is conditional` });
+    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard $${spec.priceMaxUsd}/month maximum, so this quote is conditional` });
     if (eligibility === 'STANDARD') eligibility = 'CONDITIONAL';
   }
 

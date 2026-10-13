@@ -43,15 +43,15 @@ export function PlanDetails({ rec, productId, onClose, onApply }: Props) {
         <MatchBar score={p.fitScore} top={p.recommended} />
 
         <div className="stats">
-          <div className="stat"><b className="num">{formatUsd(p.monthlyPremiumCny)}</b><span>{T.premium}</span></div>
-          <div className="stat"><b className="num">{formatUsd(p.sumAssuredCny)}</b><span>{T.sumAssured}</span></div>
+          <div className="stat"><b className="num">{formatUsd(p.monthlyPremiumUsd)}</b><span>{T.premium}</span></div>
+          <div className="stat"><b className="num">{formatUsd(p.sumAssuredUsd)}</b><span>{T.sumAssured}</span></div>
           <div className="stat"><b className="num">{p.waitingPeriodDays ? T.days(p.waitingPeriodDays) : T.noWaiting}</b><span>{T.waitingPeriod}</span></div>
         </div>
 
         <dl className="facts">
           <div><dt>{T.bestFor}</dt><dd>{T[spec.concern]}</dd></div>
-          <div><dt>{T.recommendedCover}</dt><dd className="num">{formatUsd(p.sumAssuredNeedCny)}</dd></div>
-          <div><dt>{T.coverageRange}</dt><dd className="num">{formatUsd(spec.sumAssuredMinCny)} – {formatUsd(spec.sumAssuredMaxCny)}</dd></div>
+          <div><dt>{T.recommendedCover}</dt><dd className="num">{formatUsd(p.sumAssuredNeedUsd)}</dd></div>
+          <div><dt>{T.coverageRange}</dt><dd className="num">{formatUsd(spec.sumAssuredMinUsd)} – {formatUsd(spec.sumAssuredMaxUsd)}</dd></div>
         </dl>
 
         <section className="sheet-section">

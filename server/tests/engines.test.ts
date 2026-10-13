@@ -55,15 +55,15 @@ const BASE_PROFILE: CustomerProfile = {
   health: 'normal',
   smoker: false,
   concern: 'MED',
-  monthlyBudgetUsd: 33.6,
+  monthlyBudgetUsd: 34,
 };
 
 describe('Engine 2/3 — edge cases', () => {
   it.each([
     [18, 3],
-    [18, 700],
+    [18, 704],
     [65, 3],
-    [65, 700],
+    [65, 704],
   ])('age %i, budget $%i: no crash, every field in its documented range', async (age, monthlyBudgetUsd) => {
     const profile: CustomerProfile = { ...BASE_PROFILE, age, monthlyBudgetUsd };
     const { underwriting, scored } = await runPipeline(profile);
@@ -105,7 +105,7 @@ describe('Engine 2/3 — edge cases', () => {
   });
 
   it('annualIncomeUsd: 0 (explicit) makes WeProtect CI need 0, and V = 1 via the explicit guard', async () => {
-    // `annualIncomeUsd ?? 16_800` only falls back on null/undefined, not on 0 — so an
+    // `annualIncomeUsd ?? 17_000` only falls back on null/undefined, not on 0 — so an
     // explicit 0 survives as a real 0 need. Stage 3 added an explicit guard
     // (sumAssuredNeedUsd <= 0 -> V = 1) instead of relying on min(1, sa/0) = min(1,
     // Infinity) happening to not be NaN.
@@ -183,9 +183,9 @@ describe('Engine 2/3 — invariants (property tests)', () => {
 
   it('Class 3 pays a higher (or equal) RATE per $ of sum assured than Class 1, same product/profile', async () => {
     // Per team decision: the invariant is premium-per-$-of-cover, not total premium —
-    // Class 3's total premium is lower ($3.50 vs $4.20) but it also carries half the sum
-    // assured, so a lower total for less cover is correct, not a defect. The rate itself
-    // is already higher for Class 3 (occupation loading multiplies the rate directly).
+    // Class 3's total premium is lower but it also carries half the sum assured, so a
+    // lower total for less cover is correct, not a defect. The rate itself is already
+    // higher for Class 3 (occupation loading multiplies the rate directly).
     const profile = { ...BASE_PROFILE, concern: 'ACC' as const };
     const concern = await translateConcern(profile);
     const class1 = prescreen({ ...profile, occupation: 'desk' }, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
@@ -197,7 +197,7 @@ describe('Engine 2/3 — invariants (property tests)', () => {
 });
 
 describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
-  it('WeProtect CI loaded premium for persona P2 now correctly discloses exceeding priceMaxUsd instead of silently exceeding it (was defect #3a: ¥351 > ¥300 in the old CNY catalog, no flag)', async () => {
+  it('WeProtect CI loaded premium for persona P2 now correctly discloses exceeding priceMaxUsd instead of silently exceeding it (was defect #3a, no flag)', async () => {
     // P2's smoker + NCD loadings are genuine elevated risk — the loaded premium is
     // allowed to exceed the band by design. The old bug was that it exceeded SILENTLY.
     // The base rate itself was never the problem here (it stayed well within band both
@@ -211,7 +211,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(ci.eligibility).toBe('CONDITIONAL');
   });
 
-  it('WeProtect CI base premium stays within priceMaxUsd for persona P5 at age 52 (was defect #3b: ¥302.40 > ¥300 in the old CNY catalog)', async () => {
+  it('WeProtect CI base premium stays within priceMaxUsd for persona P5 at age 52 (was defect #3b)', async () => {
     const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
     const concern = await translateConcern(profile);
     const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
@@ -219,8 +219,8 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(false);
   });
 
-  it('WeCare Health+ $140,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130 in the old CNY catalog)', async () => {
-    // Defect #4 is fixed for the $140k tier only — see the next test for the $70k tier,
+  it('WeCare Health+ 141,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both floored to the same value)', async () => {
+    // Defect #4 is fixed for the $141k tier only — see the next test for the $70k tier,
     // which is a known, accepted limitation (section 7 decision in RULEBOOK-CHANGES.md).
     const profile = { ...BASE_PROFILE, concern: 'MED' as const };
     const concern = await translateConcern(profile);
@@ -231,7 +231,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(at30.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
   });
 
-  it('WeCare Health+ $70,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
+  it('WeCare Health+ 70,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
     // Accepted limitation: the $70k tier needs its own rate tier to differentiate by
     // age (out of scope — catalog.ts is shared/read-only, and a sum-assured-tiered rate
     // table is more scope than "replace the age factor"). What the rate table DOES
@@ -269,7 +269,7 @@ describe('Engine 2/3 — stage 3 (scoring): U penalty by condition type', () => 
     eligibility: 'STANDARD',
     sumAssuredUsd: 70_000,
     sumAssuredNeedUsd: 70_000,
-    monthlyPremiumUsd: 18.2,
+    monthlyPremiumUsd: 18,
     loadings: { occupation: 0, smoker: 0, health: 0 },
     waitingPeriodDays: 30,
     conditions: [...CATALOG.WECARE_HEALTH.statutoryConditions],

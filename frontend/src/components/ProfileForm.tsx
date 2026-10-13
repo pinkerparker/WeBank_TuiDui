@@ -13,7 +13,11 @@ type Props = {
   understood: ConcernResult | null;
 };
 
-const BUDGET_PRESETS = [50, 100, 200, 300];
+/** Monthly premiums run about $4-$62, so these cover cheap-only through every plan. */
+const BUDGET_PRESETS = [15, 25, 40, 60];
+/** Matches the API validator (monthlyBudgetUsd 3-704). */
+const BUDGET_MIN = 3;
+const BUDGET_MAX = 704;
 
 function Field({ label, value, children }: { label: string; value?: ReactNode; children: ReactNode }) {
   return (
@@ -84,7 +88,7 @@ function BudgetPicker({ value, onChange }: { value: number; onChange: (n: number
           setCustom(v === 'custom');
           if (v !== 'custom') onChange(v);
         }} />
-      {custom && <NumberInput label={T.customAmount} min={20} max={5000} prefix="$" suffix={T.perMonth} value={value} onChange={(n) => n !== undefined && onChange(n)} />}
+      {custom && <NumberInput label={T.customAmount} min={BUDGET_MIN} max={BUDGET_MAX} prefix="$" suffix={T.perMonth} value={value} onChange={(n) => n !== undefined && onChange(n)} />}
     </>
   );
 }
@@ -141,7 +145,7 @@ export function SamplePicker({ onPick }: { onPick: (p: CustomerProfile) => void 
 
 /** Optional facts the engines already use to size cover. Collapsed by default to keep the form short. */
 function MoreDetails({ p, set }: { p: CustomerProfile; set: (patch: Partial<CustomerProfile>) => void }) {
-  const filled = [p.annualIncomeCny, p.dependants, p.webankLoanBalanceCny].filter((v) => v !== undefined).length;
+  const filled = [p.annualIncomeUsd, p.dependants, p.webankLoanBalanceUsd].filter((v) => v !== undefined).length;
   const [open, setOpen] = useState(filled > 0);
   return (
     <div className="more">
@@ -156,7 +160,7 @@ function MoreDetails({ p, set }: { p: CustomerProfile; set: (patch: Partial<Cust
         <div className="form more-body">
           <Field label={T.income}>
             <NumberInput optional label={T.income} min={0} max={99_999_999} prefix="$" suffix={T.perYear} placeholder="0"
-              value={p.annualIncomeCny} onChange={(annualIncomeCny) => set({ annualIncomeCny })} />
+              value={p.annualIncomeUsd} onChange={(annualIncomeUsd) => set({ annualIncomeUsd })} />
             <p className="hint">{T.incomeHint}</p>
           </Field>
           <Field label={T.dependants}>
@@ -167,7 +171,7 @@ function MoreDetails({ p, set }: { p: CustomerProfile; set: (patch: Partial<Cust
           </Field>
           <Field label={T.loan}>
             <NumberInput optional label={T.loan} min={0} max={99_999_999} prefix="$" placeholder="0"
-              value={p.webankLoanBalanceCny} onChange={(webankLoanBalanceCny) => set({ webankLoanBalanceCny })} />
+              value={p.webankLoanBalanceUsd} onChange={(webankLoanBalanceUsd) => set({ webankLoanBalanceUsd })} />
             <p className="hint">{T.loanHint}</p>
           </Field>
         </div>
@@ -242,7 +246,7 @@ export function ProfileForm({ value: p, onChange, details, onDetails, understood
       </Field>
 
       <Field label={T.budget}>
-        <BudgetPicker value={p.monthlyBudgetCny} onChange={(monthlyBudgetCny) => set({ monthlyBudgetCny })} />
+        <BudgetPicker value={p.monthlyBudgetUsd} onChange={(monthlyBudgetUsd) => set({ monthlyBudgetUsd })} />
       </Field>
 
       <MoreDetails p={p} set={set} />

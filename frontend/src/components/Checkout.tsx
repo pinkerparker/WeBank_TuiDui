@@ -60,8 +60,8 @@ export function Checkout({ rec, productId, onExit, onHome, showAudit, onOpenAudi
         <StatusPill eligibility={p.eligibility} />
       </div>
       <dl className="plan-facts">
-        <div><dt>{T.premium}</dt><dd className="num">{formatUsd(p.monthlyPremiumCny)}</dd></div>
-        <div><dt>{T.sumAssured}</dt><dd className="num">{formatUsd(p.sumAssuredCny)}</dd></div>
+        <div><dt>{T.premium}</dt><dd className="num">{formatUsd(p.monthlyPremiumUsd)}</dd></div>
+        <div><dt>{T.sumAssured}</dt><dd className="num">{formatUsd(p.sumAssuredUsd)}</dd></div>
       </dl>
     </section>
   );
@@ -79,8 +79,8 @@ export function Checkout({ rec, productId, onExit, onHome, showAudit, onOpenAudi
           <dl className="facts">
             <div><dt>{C.policyNumber}</dt><dd className="num">{r.policyNumber}</dd></div>
             <div><dt>{C.plan}</dt><dd>{spec.name}</dd></div>
-            <div><dt>{T.premium}</dt><dd className="num">{formatUsd(r.monthlyPremiumCny)}</dd></div>
-            <div><dt>{T.sumAssured}</dt><dd className="num">{formatUsd(p.sumAssuredCny)}</dd></div>
+            <div><dt>{T.premium}</dt><dd className="num">{formatUsd(r.monthlyPremiumUsd)}</dd></div>
+            <div><dt>{T.sumAssured}</dt><dd className="num">{formatUsd(p.sumAssuredUsd)}</dd></div>
             <div><dt>{C.coverStarts}</dt><dd>{p.waitingPeriodDays ? C.coverAfter(p.waitingPeriodDays) : C.coverToday}</dd></div>
             {r.debitReference && <div><dt>{C.debitRef}</dt><dd className="num">{r.debitReference}</dd></div>}
           </dl>
@@ -147,7 +147,7 @@ export function Checkout({ rec, productId, onExit, onHome, showAudit, onOpenAudi
           <div className="actions">
             {step > 0 && <button className="btn-secondary" onClick={() => setStep(step - 1)} disabled={busy}>{C.back}</button>}
             {last
-              ? <button className="btn-primary" onClick={submit} disabled={!agreed.every(Boolean) || busy}>{busy ? C.submitting : C.confirm(formatUsd(p.monthlyPremiumCny))}</button>
+              ? <button className="btn-primary" onClick={submit} disabled={!agreed.every(Boolean) || busy}>{busy ? C.submitting : C.confirm(formatUsd(p.monthlyPremiumUsd))}</button>
               : <button className="btn-primary" onClick={() => setStep(step + 1)} disabled={!agreed[step]}>{C.next}</button>}
           </div>
         </section>

@@ -26,7 +26,7 @@ describe('api client', () => {
   });
 
   it('passes a refused bind (422 + FAILED body) through as a result, not an exception', async () => {
-    vi.stubGlobal('fetch', reply(422, { status: 'FAILED', productId: 'WEPROTECT_CI', monthlyPremiumCny: 120, message: 'Cannot bind: REFERRED' }));
+    vi.stubGlobal('fetch', reply(422, { status: 'FAILED', productId: 'WEPROTECT_CI', monthlyPremiumUsd: 120, message: 'Cannot bind: REFERRED' }));
     const res = await bind({ sessionId: 's', productId: 'WEPROTECT_CI', consentId: 'c', idempotencyKey: 'idem-12345' });
     expect(res.status).toBe('FAILED');
     expect(res.message).toContain('REFERRED');

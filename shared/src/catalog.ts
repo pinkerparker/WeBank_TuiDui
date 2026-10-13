@@ -1,7 +1,8 @@
 /**
  * WeBank Wealth+ product catalog in USD.
- * Converted from the earlier CNY catalog at 1 CNY = 0.14 USD (about 7.14 CNY per USD),
- * which keeps every ratio between amounts unchanged, so scores are unaffected.
+ * Converted from CNY at a one-time migration rate of 1 USD = 7.1 CNY (never used at
+ * runtime — see RULEBOOK-CHANGES.md §7). Sum assured rounded to the nearest $1,000;
+ * prices rounded to the nearest whole dollar.
  * These ranges are HARD BOUNDS for sum-assured sizing (doc section 3.3).
  */
 import type { ConcernCode, ProductId } from './types';
@@ -30,9 +31,9 @@ export const CATALOG: Record<ProductId, ProductSpec> = {
     type: 'Lump-sum health (IPD & Day Surgery)',
     concern: 'MED',
     sumAssuredMinUsd: 28_000,
-    sumAssuredMaxUsd: 140_000,
-    priceMinUsd: 18.2,
-    priceMaxUsd: 61.6,
+    sumAssuredMaxUsd: 141_000,
+    priceMinUsd: 18,
+    priceMaxUsd: 62,
     statutoryWaitingDays: 30,
     statutoryConditions: [
       { code: 'EXCL_PRE_EXISTING', description: 'Pre-existing conditions are not covered' },
@@ -47,7 +48,7 @@ export const CATALOG: Record<ProductId, ProductSpec> = {
     concern: 'INC',
     sumAssuredMinUsd: 14_000,
     sumAssuredMaxUsd: 56_000,
-    priceMinUsd: 9.8,
+    priceMinUsd: 10,
     priceMaxUsd: 42,
     statutoryWaitingDays: 90,
     statutoryConditions: [{ code: 'WAITING_90D', description: '90-day waiting period' }],
@@ -60,9 +61,9 @@ export const CATALOG: Record<ProductId, ProductSpec> = {
     type: 'Personal accident 24h worldwide',
     concern: 'ACC',
     sumAssuredMinUsd: 7_000,
-    sumAssuredMaxUsd: 28_000, // disability / death; medical 560–2,800 per accident
-    priceMinUsd: 3.5,
-    priceMaxUsd: 12.6,
+    sumAssuredMaxUsd: 28_000, // disability / death; medical sub-limits per accident
+    priceMinUsd: 4,
+    priceMaxUsd: 13,
     statutoryWaitingDays: 0,
     statutoryConditions: [{ code: 'COVER_DAY_ONE', description: 'Covered from day one, no health check' }],
     benefitProfile: { MED: 0.3, INC: 0.1, ACC: 1, DEBT: 0.1 },
@@ -74,9 +75,9 @@ export const CATALOG: Record<ProductId, ProductSpec> = {
     type: 'Term life, offsets WeBank loans',
     concern: 'DEBT',
     sumAssuredMinUsd: 28_000,
-    sumAssuredMaxUsd: 84_000,
+    sumAssuredMaxUsd: 85_000,
     priceMinUsd: 7,
-    priceMaxUsd: 25.2,
+    priceMaxUsd: 25,
     statutoryWaitingDays: 0,
     statutoryConditions: [{ code: 'EXCL_SUICIDE_1Y', description: 'Suicide excluded in year 1' }],
     benefitProfile: { MED: 0, INC: 0.3, ACC: 0.1, DEBT: 1 },

@@ -16,7 +16,7 @@ const SHOW_SAMPLES = USE_MOCK || import.meta.env.DEV;
 
 export default function App() {
   const { route, go, back } = useRoute();
-  const [profile, setProfile] = useState<CustomerProfile>({ ...MOCK_PROFILE, monthlyBudgetCny: 100 });
+  const [profile, setProfile] = useState<CustomerProfile>({ ...MOCK_PROFILE, monthlyBudgetUsd: 25 });
   const [details, setDetails] = useState<ProfileDetails>({ jobId: defaultJobFor(MOCK_PROFILE.occupation), conditions: [] });
   const [rec, setRec] = useState<RecommendationResponse | null>(null);
   const [error, setError] = useState(false);

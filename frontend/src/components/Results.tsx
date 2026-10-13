@@ -46,8 +46,8 @@ export function RecommendedCard({ rec, onDetails, onApply }: {
 
       <div className="stats">
         <div className="stat"><b className="num">{top.fitScore}%</b><span>{T.matchScore}</span></div>
-        <div className="stat"><b className="num">{formatUsd(top.monthlyPremiumCny)}</b><span>{T.premium}</span></div>
-        <div className="stat"><b className="num">{formatUsd(top.sumAssuredCny)}</b><span>{T.sumAssured}</span></div>
+        <div className="stat"><b className="num">{formatUsd(top.monthlyPremiumUsd)}</b><span>{T.premium}</span></div>
+        <div className="stat"><b className="num">{formatUsd(top.sumAssuredUsd)}</b><span>{T.sumAssured}</span></div>
       </div>
       {top.overBudget && <span className="pill pill-danger">{T.overBudget}</span>}
 
@@ -76,8 +76,8 @@ function PlanCard({ p, onDetails }: { p: ScoredProduct; onDetails: (id: ProductI
         </div>
         <MatchBar score={p.fitScore} top={p.recommended} />
         <dl className="plan-facts">
-          <div><dt>{T.premium}</dt><dd className="num">{formatUsd(p.monthlyPremiumCny)}{p.overBudget && <span className="over"> · {T.overBudget}</span>}</dd></div>
-          <div><dt>{T.sumAssured}</dt><dd className="num">{formatUsd(p.sumAssuredCny)}</dd></div>
+          <div><dt>{T.premium}</dt><dd className="num">{formatUsd(p.monthlyPremiumUsd)}{p.overBudget && <span className="over"> · {T.overBudget}</span>}</dd></div>
+          <div><dt>{T.sumAssured}</dt><dd className="num">{formatUsd(p.sumAssuredUsd)}</dd></div>
         </dl>
         <div className="plan-foot">
           <span>{T.conditionsCount(p.conditions.length)}</span>
@@ -106,7 +106,7 @@ export function MobileSummary({ rec }: { rec: RecommendationResponse }) {
     <div className="mobile-summary">
       <div>
         <span className="mobile-summary-label">{T.bestMatch} · <b className="num">{top.fitScore}%</b></span>
-        <b>{CATALOG[top.productId].name} · <span className="num">{formatUsd(top.monthlyPremiumCny)}{T.perMonth}</span></b>
+        <b>{CATALOG[top.productId].name} · <span className="num">{formatUsd(top.monthlyPremiumUsd)}{T.perMonth}</span></b>
       </div>
       <a className="btn-primary small" href="#results">{T.view}</a>
     </div>
