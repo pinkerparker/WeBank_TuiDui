@@ -127,8 +127,8 @@ export function Home({ onStart }: Props) {
                     <p>{spec.type}</p>
                     <dl className="facts">
                       <div><dt>{T.bestFor}</dt><dd>{T[spec.concern]}</dd></div>
-                      <div><dt>{T.sumAssured}</dt><dd className="num">{H.coverUpTo(formatUsd(spec.sumAssuredMaxCny))}</dd></div>
-                      <div><dt>{T.premium}</dt><dd className="num">{H.from(formatUsd(spec.priceMinCny))}</dd></div>
+                      <div><dt>{T.sumAssured}</dt><dd className="num">{H.coverUpTo(formatUsd(spec.sumAssuredMaxUsd))}</dd></div>
+                      <div><dt>{T.premium}</dt><dd className="num">{H.from(formatUsd(spec.priceMinUsd))}</dd></div>
                     </dl>
                     <MoreLink stretched onClick={() => onStart(spec.concern)}>{H.checkMatch}</MoreLink>
                   </li>
