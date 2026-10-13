@@ -21,7 +21,7 @@ describe('Engine 1 — concern (B)', () => {
     }
   });
   it('free text overrides the chip when clear', async () => {
-    const c = await translateConcern({ ...MOCK_PROFILE, concern: 'MED', concernText: '担心房贷留给家人' });
+    const c = await translateConcern({ ...MOCK_PROFILE, concern: 'MED', concernText: 'Worried my mortgage will fall on my family' });
     expect(c.primary).toBe('DEBT');
   });
 });
