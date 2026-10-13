@@ -7,20 +7,44 @@ import type { CustomerProfile, RecommendationResponse } from '@insightshield/sha
 import { RULEBOOK_VERSION } from '@insightshield/shared';
 import { audit } from './audit';
 import { sessions } from './store/persistence';
-import { redactPii } from './engines/concern/pii';
 import { translateConcern } from './engines/concern';
 import { prescreen } from './engines/underwriting';
 import { score } from './engines/scoring';
 
+/** Coarse age band for audit-only logging. Exact age is dropped. */
+function ageBand(age: number): string {
+  if (age < 30) return '18-29';
+  if (age < 40) return '30-39';
+  if (age < 50) return '40-49';
+  if (age < 60) return '50-59';
+  return '60+';
+}
+
+/**
+ * Audit-only projection of the profile. Drops every PII-bearing
+ * field — exact age, health, smoker, financial values, dependants
+ * — and suppresses the free-text concernText entirely. The raw
+ * profile continues to flow into the engines, the API response, and
+ * the persistent sessions JsonMap. This projection is what gets
+ * hashed by the audit ledger, so it must be the only thing written
+ * to the on-disk JSONL.
+ */
+function auditSnapshot(p: CustomerProfile) {
+  return {
+    gender: p.gender,
+    ageBand: ageBand(p.age),
+    occupation: p.occupation,
+    concern: p.concern,
+    concernTextSuppressed: p.concernText ? '[REDACTED]' : null,
+  };
+}
+
 export async function recommend(profile: CustomerProfile, sessionId: string = randomUUID()): Promise<RecommendationResponse> {
-  // SESSION_START carries the full profile into the audit ledger. Redact
-  // concernText before logging so free-form PII (name, email, phone, URL)
-  // does not get written to the on-disk JSONL. The raw profile still flows
-  // into the engines, the API response, and the persisted session.
-  const auditProfile = profile.concernText
-    ? { ...profile, concernText: redactPii(profile.concernText).text }
-    : profile;
-  audit(sessionId, 'SESSION_START', { profile: auditProfile, rulebookVersion: RULEBOOK_VERSION });
+  // SESSION_START is the only audit entry that contains the user's
+  // input. Write the minimized snapshot, not the full profile, so
+  // PII-bearing fields (health, smoker, financial, dependants,
+  // exact age) and the free-text concernText never reach disk.
+  audit(sessionId, 'SESSION_START', { snapshot: auditSnapshot(profile), rulebookVersion: RULEBOOK_VERSION });
 
   const concern = await translateConcern(profile);
   audit(sessionId, 'CONCERN_TRANSLATED', concern);

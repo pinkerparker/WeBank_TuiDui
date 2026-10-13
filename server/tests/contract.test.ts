@@ -10,7 +10,6 @@ import { translateConcern } from '../src/engines/concern';
 import { prescreen } from '../src/engines/underwriting';
 import { score } from '../src/engines/scoring';
 import { verifyChain } from '../src/audit';
-import { redactPii } from '../src/engines/concern/pii';
 import { app } from '../src/index';
 
 describe('Engine 1 — concern (B)', () => {
@@ -151,95 +150,129 @@ describe('API session recovery (D, Step 3B)', () => {
   });
 });
 
-describe('API PII redaction in audit log (D, Step 3D)', () => {
-  // Tests assert against the actual `redactPii()` from engines/concern/pii
-  // (the same upstream function used by the pipeline) rather than against
-  // hard-coded expected strings. This way the test stays correct if the
-  // upstream rules evolve.
+describe('API PII suppression and audit minimization (D, Phase 1)', () => {
+  // SESSION_START is the only audit entry that carries user input.
+  // It must contain a coarse, non-PII snapshot — never the raw
+  // profile. The raw profile is still returned to the user and
+  // persisted in the sessions JsonMap.
 
-  it('redacts concernText in SESSION_START but keeps the original everywhere else', async () => {
+  it('SESSION_START fully suppresses concernText and minimizes the profile snapshot', async () => {
     const originalText = 'My name is Jane Doe, email jane.doe@example.com, +1 415-555-0132';
-    const expectedRedacted = redactPii(originalText).text;
-
-    // Sanity guard: the upstream function must actually change this input.
-    // If the function is broken or the input is not a PII shape, fail loud
-    // rather than producing a green test that asserts "raw == raw".
-    expect(expectedRedacted).not.toBe(originalText);
-
     const rec = await request(app)
       .post('/api/v1/recommendations')
-      .send({ ...MOCK_PROFILE, concernText: originalText });
+      .send({
+        ...MOCK_PROFILE,
+        concernText: originalText,
+        // Fill every sensitive field so we can assert they are absent
+        // from the audit.
+        health: 'ncd',
+        smoker: true,
+        annualIncomeCny: 240_000,
+        webankLoanBalanceCny: 350_000,
+        dependants: 3,
+      });
     expect(rec.status).toBe(200);
     const id: string = rec.body.sessionId;
 
-    // 1) The HTTP response contains the ORIGINAL concernText.
-    expect(rec.body.profile.concernText).toBe(originalText);
+    const log = await request(app).get(`/api/v1/audit/${id}`);
+    const sessionStart = log.body.entries.find((e: { event: string }) => e.event === 'SESSION_START');
+    expect(sessionStart).toBeDefined();
+    const snap = sessionStart.payload.snapshot;
+    expect(snap).toBeDefined();
 
-    // 2) The persisted session (via Step 3B recovery endpoint) contains
-    //    the ORIGINAL concernText — the user sees their own text.
+    // The raw concernText must never appear in the audit payload.
+    expect(JSON.stringify(sessionStart.payload)).not.toContain(originalText);
+    expect(snap.concernTextSuppressed).toBe('[REDACTED]');
+
+    // Sensitive fields must be absent from the audit snapshot.
+    expect(snap).not.toHaveProperty('health');
+    expect(snap).not.toHaveProperty('smoker');
+    expect(snap).not.toHaveProperty('annualIncomeCny');
+    expect(snap).not.toHaveProperty('webankLoanBalanceCny');
+    expect(snap).not.toHaveProperty('monthlyBudgetCny');
+    expect(snap).not.toHaveProperty('dependants');
+    expect(snap).not.toHaveProperty('age'); // exact age must be bucketed
+    expect(snap).not.toHaveProperty('concernText'); // raw field name must not leak
+
+    // Allowed coarse fields are present.
+    expect(snap.gender).toBe(MOCK_PROFILE.gender);
+    expect(snap.ageBand).toMatch(/^(18-29|30-39|40-49|50-59|60\+)$/);
+    expect(snap.occupation).toBe(MOCK_PROFILE.occupation);
+    expect(snap.concern).toBe(MOCK_PROFILE.concern);
+  });
+
+  it('recommendation response still contains the full original profile', async () => {
+    const originalText = 'My name is Jane Doe, jane.doe@example.com';
+    const rec = await request(app)
+      .post('/api/v1/recommendations')
+      .send({
+        ...MOCK_PROFILE,
+        concernText: originalText,
+        health: 'major_surgery',
+        smoker: true,
+        annualIncomeCny: 180_000,
+        webankLoanBalanceCny: 450_000,
+        dependants: 2,
+      });
+    expect(rec.status).toBe(200);
+
+    // Every field is preserved in the response — the user sees their own input.
+    expect(rec.body.profile.concernText).toBe(originalText);
+    expect(rec.body.profile.health).toBe('major_surgery');
+    expect(rec.body.profile.smoker).toBe(true);
+    expect(rec.body.profile.annualIncomeCny).toBe(180_000);
+    expect(rec.body.profile.webankLoanBalanceCny).toBe(450_000);
+    expect(rec.body.profile.dependants).toBe(2);
+    expect(rec.body.profile.age).toBe(MOCK_PROFILE.age); // exact age preserved in response
+  });
+
+  it('session recovery returns the full original profile', async () => {
+    const originalText = 'My name is Jane Doe, jane.doe@example.com';
+    const rec = await request(app)
+      .post('/api/v1/recommendations')
+      .send({ ...MOCK_PROFILE, concernText: originalText, health: 'ncd', smoker: true });
+    expect(rec.status).toBe(200);
+    const id: string = rec.body.sessionId;
+
     const persisted = await request(app).get(`/api/v1/sessions/${id}`);
     expect(persisted.status).toBe(200);
     expect(persisted.body.found).toBe(true);
     expect(persisted.body.session.profile.concernText).toBe(originalText);
-
-    // 3) The audit SESSION_START entry contains the REDACTED concernText.
-    //    Compare to the actual function output, not a hand-written pattern.
-    const log = await request(app).get(`/api/v1/audit/${id}`);
-    expect(log.status).toBe(200);
-    const sessionStart = log.body.entries.find((e: { event: string }) => e.event === 'SESSION_START');
-    expect(sessionStart).toBeDefined();
-    expect(sessionStart.payload.profile.concernText).toBe(expectedRedacted);
-    expect(sessionStart.payload.profile.concernText).not.toBe(originalText);
+    expect(persisted.body.session.profile.health).toBe('ncd');
+    expect(persisted.body.session.profile.smoker).toBe(true);
   });
 
-  it('audit hash chain remains valid after redaction (redacted payload is hashed, not raw)', async () => {
-    const originalText = 'My name is Jane Doe, jane.doe@example.com';
+  it('audit hash chain remains valid after minimization', async () => {
     await request(app)
       .post('/api/v1/recommendations')
-      .send({ ...MOCK_PROFILE, concernText: originalText });
+      .send({
+        ...MOCK_PROFILE,
+        concernText: 'My name is Jane Doe, jane.doe@example.com',
+        health: 'ncd',
+        smoker: true,
+      });
 
-    const log = await request(app).get('/api/v1/audit/' + 'any-id-not-required');
-    // chainValid is process-wide: any prior redaction did not break the chain.
+    const log = await request(app).get('/api/v1/audit/any-id');
     expect(log.body.chainValid).toBe(true);
     expect(verifyChain()).toBe(true);
   });
 
-  it('leaves concernText unchanged when it contains no PII (pass-through)', async () => {
-    const originalText = 'Worried about hospital room costs for my family';
-    const expectedRedacted = redactPii(originalText).text;
-
-    // Sanity guard: the upstream function must leave this input alone.
-    // If it doesn't, the redaction rules have changed and the test
-    // expectations must be revisited.
-    expect(expectedRedacted).toBe(originalText);
-
+  it('handles a profile without concernText cleanly (snapshot has null suppression)', async () => {
     const rec = await request(app)
       .post('/api/v1/recommendations')
-      .send({ ...MOCK_PROFILE, concernText: originalText });
-    expect(rec.status).toBe(200);
-
-    // Response keeps the original.
-    expect(rec.body.profile.concernText).toBe(originalText);
-
-    // Audit SESSION_START also keeps the original (no PII to redact).
-    const log = await request(app).get(`/api/v1/audit/${rec.body.sessionId}`);
-    const sessionStart = log.body.entries.find((e: { event: string }) => e.event === 'SESSION_START');
-    expect(sessionStart.payload.profile.concernText).toBe(originalText);
-  });
-
-  it('handles a profile without concernText (no audit-time key present, no crash)', async () => {
-    const rec = await request(app)
-      .post('/api/v1/recommendations')
-      .send({ ...MOCK_PROFILE }); // no concernText at all
+      .send({ ...MOCK_PROFILE }); // no concernText
     expect(rec.status).toBe(200);
     expect(rec.body.profile.concernText).toBeUndefined();
 
     const log = await request(app).get(`/api/v1/audit/${rec.body.sessionId}`);
     const sessionStart = log.body.entries.find((e: { event: string }) => e.event === 'SESSION_START');
-    expect(sessionStart.payload.profile.concernText).toBeUndefined();
+    expect(sessionStart.payload.snapshot.concernTextSuppressed).toBeNull();
+    // Other snapshot fields still well-formed.
+    expect(sessionStart.payload.snapshot.concern).toBe(MOCK_PROFILE.concern);
+    expect(sessionStart.payload.snapshot.ageBand).toMatch(/^(18-29|30-39|40-49|50-59|60\+)$/);
   });
 
-  it('recovered session after module reload still has the original concernText', async () => {
+  it('recovered session after module reload still has the full original profile', async () => {
     const originalText = 'My name is Jane Doe, jane.doe@example.com';
     const rec = await request(app)
       .post('/api/v1/recommendations')
@@ -247,7 +280,6 @@ describe('API PII redaction in audit log (D, Step 3D)', () => {
     expect(rec.status).toBe(200);
     const id: string = rec.body.sessionId;
 
-    // Simulate process restart.
     vi.resetModules();
     const { app: reloadedApp } = await import('../src/index');
 
