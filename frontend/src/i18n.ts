@@ -2,9 +2,9 @@
 import type { Eligibility } from '@insightshield/shared';
 
 export const T = {
-  brandWe: 'We', brandBank: 'Bank',
-  badge: 'Insurance AI',
-  home: 'WeBank home',
+  brandInsight: 'Insight', brandShield: 'Shield',
+  badge: 'for WeBank Wealth+',
+  home: 'InsightShield home',
   title: 'Find the right insurance plan',
   subtitle: 'Answer a few questions. Your matches update instantly.',
 
@@ -51,10 +51,10 @@ export const T = {
   loanHint: 'Used to size debt-protection cover so your loan can be paid off.',
   sampleLabel: 'Demo: load a sample customer…',
   pageTitle: {
-    home: 'WeBank Insurance AI',
-    match: 'Your matches · WeBank Insurance AI',
-    apply: 'Apply · WeBank Insurance AI',
-    audit: 'Audit trail · WeBank Insurance AI',
+    home: 'InsightShield · AI insurance matching for WeBank Wealth+',
+    match: 'Your matches · InsightShield',
+    apply: 'Apply · InsightShield',
+    audit: 'Audit trail · InsightShield',
   },
 
   yourMatches: 'Your matches',
@@ -74,7 +74,6 @@ export const T = {
   buy: 'Apply now',
   notEligible: 'Not available for your profile',
   needsReview: 'Needs underwriter review',
-  mockBanner: 'Demo mode: showing sample results. Start the server to see live matches.',
 
   // Plan details
   viewDetails: 'View details',
@@ -94,7 +93,7 @@ export const T = {
 
 /** Home (landing) screen */
 export const H = {
-  eyebrow: 'WeBank Wealth+ · Insurance AI',
+  eyebrow: 'AI insurance matching for WeBank Wealth+',
   title: 'Insurance that fits your life, matched in a minute',
   subtitle: 'Answer a few quick questions and our AI compares every WeBank plan for you, explains why, and lets you apply right in the app.',
   start: 'Get started',

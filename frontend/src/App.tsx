@@ -1,23 +1,22 @@
 import { useEffect, useState, type MouseEvent } from 'react';
 import type { ConcernCode, CustomerProfile, ProductId, RecommendationResponse } from '@insightshield/shared';
-import { MOCK_PROFILE } from '@insightshield/shared';
-import { getRecommendation, USE_MOCK } from './api/client';
+import { getRecommendation } from './api/client';
 import { Checkout } from './components/Checkout';
 import { Home } from './components/Home';
 import { PlanDetails } from './components/PlanDetails';
 import { ProfileForm, SamplePicker } from './components/ProfileForm';
 import { MobileSummary, PlanList, RecommendedCard } from './components/Results';
 import { T } from './i18n';
-import { defaultJobFor, type ProfileDetails } from './profileOptions';
+import { DEFAULT_PROFILE, defaultJobFor, type ProfileDetails } from './profileOptions';
 import { useRoute } from './router';
 
-/** Sample customers help demos; hidden in a production build unless mock mode is on. */
-const SHOW_SAMPLES = USE_MOCK || import.meta.env.DEV;
+/** Sample customers (sent to the real API) help demos; only shown when running `npm run dev:web`. */
+const SHOW_SAMPLES = import.meta.env.DEV;
 
 export default function App() {
   const { route, go, back } = useRoute();
-  const [profile, setProfile] = useState<CustomerProfile>({ ...MOCK_PROFILE, monthlyBudgetUsd: 25 });
-  const [details, setDetails] = useState<ProfileDetails>({ jobId: defaultJobFor(MOCK_PROFILE.occupation), conditions: [] });
+  const [profile, setProfile] = useState<CustomerProfile>(DEFAULT_PROFILE);
+  const [details, setDetails] = useState<ProfileDetails>({ jobId: defaultJobFor(DEFAULT_PROFILE.occupation), conditions: [] });
   const [rec, setRec] = useState<RecommendationResponse | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,11 +80,16 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="logo wordmark" href="#/" aria-label={T.home} onClick={goHome}><span className="we">{T.brandWe}</span>{T.brandBank}</a>
+          <a className="logo wordmark" href="#/" aria-label={T.home} onClick={goHome}>
+            <svg className="wordmark-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="currentColor" />
+              <polyline points="8.5 12 11 14.5 15.5 9.5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>{T.brandInsight}<span className="shield">{T.brandShield}</span></span>
+          </a>
           <span className="badge">{T.badge}</span>
         </div>
       </header>
-      {USE_MOCK && <div className="mock-banner" role="note">{T.mockBanner}</div>}
 
       {inCheckout && checkout ? (
         <Checkout key={checkout.rec.sessionId + checkout.productId} rec={checkout.rec} productId={checkout.productId}
