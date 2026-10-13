@@ -49,7 +49,7 @@ export function buildNeedVector(profile: CustomerProfile, primary: ConcernCode):
   const weight: Record<ConcernCode, number> = { MED: 1, INC: 1, ACC: 1, DEBT: 1 };
   if (profile.occupation === 'field') weight.ACC += 0.5;
   if (profile.occupation === 'technician') weight.ACC += 1;
-  if ((profile.webankLoanBalanceCny ?? 0) > 0) weight.DEBT += 1;
+  if ((profile.webankLoanBalanceUsd ?? 0) > 0) weight.DEBT += 1;
   if ((profile.dependants ?? 0) > 0) weight.INC += 0.5;
   if (profile.health !== 'normal') weight.MED += 0.5;
 
