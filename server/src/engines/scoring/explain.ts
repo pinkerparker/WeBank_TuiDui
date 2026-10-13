@@ -65,7 +65,7 @@ export function explain(
     lines.push(`Matches your main concern; ${spec.name} covers up to ${yuan(u.sumAssuredCny)}.`);
   } else if (s.R < 0.2) {
     codes.push('R_LOW');
-    lines.push('Only loosely related to the concern you selected.');
+    lines.push('Only loosely related to your main concern.');
   }
 
   // 2. Underwriting (U)
