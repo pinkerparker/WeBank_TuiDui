@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { CONCERN_CODES, MOCK_PROFILE, PERSONAS } from '@insightshield/shared';
 import type { ConcernCode, ConcernResult, CustomerProfile } from '@insightshield/shared';
 import { createTranslateConcern, detectFromText, sanitizeKeywords, translateConcern } from '../src/engines/concern';
-import { llmEnabled, type ConcernClassifier } from '../src/engines/concern/llm';
+import { llmEnabled, selectProvider, type ConcernClassifier } from '../src/engines/concern/llm';
+import { parseGeminiText } from '../src/engines/concern/gemini';
 import { redactPii } from '../src/engines/concern/pii';
 
 function expectContract(c: ConcernResult) {
@@ -105,6 +106,19 @@ describe('Engine 1 — LLM path', () => {
   });
 });
 
+describe('Engine 1 — Gemini answer parsing', () => {
+  it('reads a valid JSON answer, mapping UNCLEAR to null', () => {
+    expect(parseGeminiText('{"primary":"ACC","keywords":["accident"]}')).toEqual({ primary: 'ACC', keywords: ['accident'] });
+    expect(parseGeminiText('{"primary":"UNCLEAR","keywords":[]}')).toEqual({ primary: null, keywords: [] });
+  });
+
+  it('returns null for blocked, non-JSON or off-schema answers', () => {
+    expect(parseGeminiText(undefined)).toBeNull();
+    expect(parseGeminiText('Sure! The concern is MED.')).toBeNull();
+    expect(parseGeminiText('{"primary":"HEALTH","keywords":[]}')).toBeNull();
+  });
+});
+
 describe('Engine 1 — keyword sanitising (audit ledger)', () => {
   it('drops invented words, placeholders, duplicates and over-long phrases', () => {
     const text = 'my name is [NAME] and hospital bills worry me';
@@ -115,10 +129,18 @@ describe('Engine 1 — keyword sanitising (audit ledger)', () => {
 
 describe('Engine 1 — LLM switch', () => {
   it('is off under tests, when disabled, or without an API key', () => {
-    expect(llmEnabled({ NODE_ENV: 'test', ANTHROPIC_API_KEY: 'k' })).toBe(false);
+    expect(llmEnabled({ NODE_ENV: 'test', ANTHROPIC_API_KEY: 'k', GEMINI_API_KEY: 'k' })).toBe(false);
     expect(llmEnabled({ CONCERN_LLM: 'off', ANTHROPIC_API_KEY: 'k' })).toBe(false);
     expect(llmEnabled({})).toBe(false);
-    expect(llmEnabled({ ANTHROPIC_API_KEY: 'k' })).toBe(true);
+  });
+
+  it('picks the provider from the key that exists, or the one requested', () => {
+    expect(selectProvider({ GEMINI_API_KEY: 'k' })).toBe('gemini');
+    expect(selectProvider({ ANTHROPIC_API_KEY: 'k' })).toBe('claude');
+    expect(selectProvider({ ANTHROPIC_API_KEY: 'k', GEMINI_API_KEY: 'k' })).toBe('claude');
+    expect(selectProvider({ CONCERN_LLM_PROVIDER: 'gemini', ANTHROPIC_API_KEY: 'k', GEMINI_API_KEY: 'k' })).toBe('gemini');
+    // Requested provider without its own key: rules, never a silent switch to the other provider.
+    expect(selectProvider({ CONCERN_LLM_PROVIDER: 'gemini', ANTHROPIC_API_KEY: 'k' })).toBeNull();
   });
 
   it('the default translateConcern runs on rules in tests', async () => {

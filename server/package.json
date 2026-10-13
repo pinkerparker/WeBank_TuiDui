@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@google/genai": "^2.28.0",
     "@insightshield/shared": "*",
     "cors": "^2.8.5",
     "express": "^4.21.0",

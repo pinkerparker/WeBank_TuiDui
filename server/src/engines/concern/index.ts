@@ -1,6 +1,6 @@
 /**
  * ENGINE 1 — Concern Translation (owner: B)
- * With concernText: redact PII, ask the LLM (llm.ts, JSON-schema output), and fall
+ * With concernText: redact PII, ask the LLM (llm.ts picks Claude or Gemini), and fall
  * back to English keyword rules if the LLM is off, fails, or is unsure.
  * Without concernText: the chip decides, no LLM call.
  * needVector always comes from buildNeedVector, so the contract holds on every path.
@@ -8,7 +8,7 @@
  */
 import type { ConcernCode, ConcernResult, CustomerProfile, NeedVector, TranslateConcern } from '@insightshield/shared';
 import { CONCERN_CODES } from '@insightshield/shared';
-import { classifyWithClaude, llmEnabled, type ConcernClassifier, type LlmConcern } from './llm';
+import { selectClassifier, type ConcernClassifier, type LlmConcern } from './llm';
 import { redactPii } from './pii';
 
 const KEYWORDS: Record<ConcernCode, string[]> = {
@@ -117,4 +117,4 @@ export function createTranslateConcern(classify: ConcernClassifier | null): Tran
   };
 }
 
-export const translateConcern: TranslateConcern = createTranslateConcern(llmEnabled() ? classifyWithClaude : null);
+export const translateConcern: TranslateConcern = createTranslateConcern(selectClassifier());
