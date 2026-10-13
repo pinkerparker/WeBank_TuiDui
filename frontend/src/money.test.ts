@@ -12,4 +12,9 @@ describe('formatUsd', () => {
     expect(formatUsd(129.6)).toBe('$130');
     expect(formatUsd(129.4)).toBe('$129');
   });
+
+  it('shows a dash instead of "$NaN" when an amount is missing', () => {
+    expect(formatUsd(undefined)).toBe('—');
+    expect(formatUsd(Number.NaN)).toBe('—');
+  });
 });
