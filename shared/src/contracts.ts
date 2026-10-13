@@ -22,7 +22,7 @@ export type Score = (
   underwriting: UnderwritingResult[],
 ) => ScoredProduct[];
 
-export const RULEBOOK_VERSION = 'rulebook-2026.10-v0.1';
+export const RULEBOOK_VERSION = 'rulebook-2026.10-v0.2';
 
 /** REST endpoints (owner: D) */
 export const API = {

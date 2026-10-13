@@ -22,7 +22,7 @@ describe('Engine 1 — concern (B)', () => {
     }
   });
   it('free text overrides the chip when clear', async () => {
-    const c = await translateConcern({ ...MOCK_PROFILE, concern: 'MED', concernText: '担心房贷留给家人' });
+    const c = await translateConcern({ ...MOCK_PROFILE, concern: 'MED', concernText: 'Worried my mortgage will fall on my family' });
     expect(c.primary).toBe('DEBT');
   });
 });
@@ -32,8 +32,8 @@ describe('Engine 2 — underwriting (C)', () => {
     for (const { profile } of PERSONAS) {
       for (const u of prescreen(profile, await translateConcern(profile))) {
         const spec = CATALOG[u.productId];
-        expect(u.sumAssuredCny).toBeGreaterThanOrEqual(spec.sumAssuredMinCny);
-        expect(u.sumAssuredCny).toBeLessThanOrEqual(spec.sumAssuredMaxCny);
+        expect(u.sumAssuredUsd).toBeGreaterThanOrEqual(spec.sumAssuredMinUsd);
+        expect(u.sumAssuredUsd).toBeLessThanOrEqual(spec.sumAssuredMaxUsd);
       }
     }
   });
@@ -41,7 +41,7 @@ describe('Engine 2 — underwriting (C)', () => {
     const c = await translateConcern(MOCK_PROFILE);
     const a = prescreen(MOCK_PROFILE, c);
     const b = prescreen({ ...MOCK_PROFILE, smoker: true }, c);
-    expect(b[1].monthlyPremiumCny).toBeGreaterThan(a[1].monthlyPremiumCny);
+    expect(b[1].monthlyPremiumUsd).toBeGreaterThan(a[1].monthlyPremiumUsd);
   });
   it('is deterministic (audit replay)', async () => {
     const c = await translateConcern(MOCK_PROFILE);
@@ -167,8 +167,8 @@ describe('API PII suppression and audit minimization (D, Phase 1)', () => {
         // from the audit.
         health: 'ncd',
         smoker: true,
-        annualIncomeCny: 240_000,
-        webankLoanBalanceCny: 350_000,
+        annualIncomeUsd: 25_000,
+        webankLoanBalanceUsd: 50_000,
         dependants: 3,
       });
     expect(rec.status).toBe(200);
@@ -187,9 +187,9 @@ describe('API PII suppression and audit minimization (D, Phase 1)', () => {
     // Sensitive fields must be absent from the audit snapshot.
     expect(snap).not.toHaveProperty('health');
     expect(snap).not.toHaveProperty('smoker');
-    expect(snap).not.toHaveProperty('annualIncomeCny');
-    expect(snap).not.toHaveProperty('webankLoanBalanceCny');
-    expect(snap).not.toHaveProperty('monthlyBudgetCny');
+    expect(snap).not.toHaveProperty('annualIncomeUsd');
+    expect(snap).not.toHaveProperty('webankLoanBalanceUsd');
+    expect(snap).not.toHaveProperty('monthlyBudgetUsd');
     expect(snap).not.toHaveProperty('dependants');
     expect(snap).not.toHaveProperty('age'); // exact age must be bucketed
     expect(snap).not.toHaveProperty('concernText'); // raw field name must not leak
@@ -210,8 +210,8 @@ describe('API PII suppression and audit minimization (D, Phase 1)', () => {
         concernText: originalText,
         health: 'major_surgery',
         smoker: true,
-        annualIncomeCny: 180_000,
-        webankLoanBalanceCny: 450_000,
+        annualIncomeUsd: 25_000,
+        webankLoanBalanceUsd: 63_000,
         dependants: 2,
       });
     expect(rec.status).toBe(200);
@@ -220,8 +220,8 @@ describe('API PII suppression and audit minimization (D, Phase 1)', () => {
     expect(rec.body.profile.concernText).toBe(originalText);
     expect(rec.body.profile.health).toBe('major_surgery');
     expect(rec.body.profile.smoker).toBe(true);
-    expect(rec.body.profile.annualIncomeCny).toBe(180_000);
-    expect(rec.body.profile.webankLoanBalanceCny).toBe(450_000);
+    expect(rec.body.profile.annualIncomeUsd).toBe(25_000);
+    expect(rec.body.profile.webankLoanBalanceUsd).toBe(63_000);
     expect(rec.body.profile.dependants).toBe(2);
     expect(rec.body.profile.age).toBe(MOCK_PROFILE.age); // exact age preserved in response
   });

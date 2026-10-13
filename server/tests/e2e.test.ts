@@ -118,7 +118,7 @@ describe('E2E: full recommendation flow', () => {
     expect(bind.body.status).toBe('ISSUED');
     expect(bind.body.policyNumber).toMatch(/^WB-SBX-[A-F0-9]{8}$/);
     expect(bind.body.productId).toBe(RECOMMENDED_ID);
-    expect(bind.body.monthlyPremiumCny).toBeGreaterThan(0);
+    expect(bind.body.monthlyPremiumUsd).toBeGreaterThan(0);
     expect(bind.body.debitReference).toMatch(/^DD-SBX-[A-F0-9]{8}$/);
     const policyNumber: string = bind.body.policyNumber;
 
@@ -177,7 +177,7 @@ describe('E2E: idempotent binding', () => {
     // Identical debit reference.
     expect(r1.body.debitReference).toBe(r3.body.debitReference);
     // Identical premium.
-    expect(r1.body.monthlyPremiumCny).toBe(r3.body.monthlyPremiumCny);
+    expect(r1.body.monthlyPremiumUsd).toBe(r3.body.monthlyPremiumUsd);
 
     // Audit shows exactly one POLICY_ISSUED — no double issuance.
     const log = await request(app).get(`/api/v1/audit/${sessionId}`);
@@ -427,7 +427,7 @@ describe('E2E: independent sessions', () => {
       health: 'ncd',
       smoker: true,
       concern: 'ACC',
-      monthlyBudgetCny: 300,
+      monthlyBudgetUsd: 42,
     });
     expect(rec1.status).toBe(200);
     expect(rec2.status).toBe(200);
@@ -526,9 +526,9 @@ describe('E2E: invalid recommendation requests', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects missing required field (monthlyBudgetCny)', async () => {
+  it('rejects missing required field (monthlyBudgetUsd)', async () => {
     const { app } = await import('../src/index');
-    const { monthlyBudgetCny: _omit, ...rest } = MOCK_PROFILE;
+    const { monthlyBudgetUsd: _omit, ...rest } = MOCK_PROFILE;
     const res = await request(app).post('/api/v1/recommendations').send(rest);
     expect(res.status).toBe(400);
   });
@@ -541,11 +541,11 @@ describe('E2E: invalid recommendation requests', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects monthlyBudgetCny below 20', async () => {
+  it('rejects monthlyBudgetUsd below 3', async () => {
     const { app } = await import('../src/index');
     const res = await request(app)
       .post('/api/v1/recommendations')
-      .send({ ...MOCK_PROFILE, monthlyBudgetCny: 10 });
+      .send({ ...MOCK_PROFILE, monthlyBudgetUsd: 2 });
     expect(res.status).toBe(400);
   });
 

@@ -1,13 +1,20 @@
 /**
  * ENGINE 3 — Fit-Scoring & XAI (owner: C)
- * F = 100 × E × (0.45R + 0.25A + 0.15U + 0.15V)   (doc section 3.4)
+ * F = 100 × E × (0.60R + 0.20A + 0.10U + 0.10V)   (doc section 3.4, rebalanced in stage 3)
+ * If the premium exceeds the budget limit (1.1 × budget — the same gate `score()`
+ * uses to pick a recommendation), F is scaled by budgetLimit/premium. A=0.20 alone
+ * only costs 20 points for being unaffordable; this keeps an over-budget product
+ * from outscoring an affordable recommendation regardless of how well it matches.
  * Pure function. Weights live here and are versioned with RULEBOOK_VERSION.
  */
-import type { CustomerProfile, Eligibility, Score, ScoredProduct, SubScores, UnderwritingResult } from '@insightshield/shared';
-import { CATALOG, CONCERN_CODES } from '@insightshield/shared';
+import type { CustomerProfile, Eligibility, ProductId, Score, ScoredProduct, SubScores, UnderwritingResult } from '@insightshield/shared';
+import { CATALOG, CONCERN_CODES, PRODUCT_IDS } from '@insightshield/shared';
 import { explain } from './explain';
+import { conditionPenalty } from './severity';
 
-export const WEIGHTS = { R: 0.45, A: 0.25, U: 0.15, V: 0.15 } as const;
+export { CONDITION_SEVERITY } from './severity';
+
+export const WEIGHTS = { R: 0.6, A: 0.2, U: 0.1, V: 0.1 } as const;
 export const OVER_BUDGET_TOLERANCE = 0.1; // up to +10% can still be shown with a flag
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -19,28 +26,57 @@ export function affordability(premium: number, budget: number): number {
   return Math.max(0, 1 - (premium - budget) / (0.5 * budget)); // 0 at 1.5 × budget
 }
 
-export function subScores(u: UnderwritingResult, needVector: Record<string, number>, p: CustomerProfile): SubScores {
-  const profile = CATALOG[u.productId].benefitProfile;
-  const R = CONCERN_CODES.reduce((s, c) => s + needVector[c] * profile[c], 0);
-  const A = affordability(u.monthlyPremiumCny, p.monthlyBudgetCny);
-  const extra = u.conditions.length - CATALOG[u.productId].statutoryConditions.length;
-  const U = Math.max(0, 1 - 0.15 * extra);
-  const V = Math.min(1, u.sumAssuredCny / u.sumAssuredNeedCny);
+/** Raw (unnormalised) concern-relevance dot product for one product. */
+function rawR(needVector: Record<string, number>, productId: ProductId): number {
+  const benefitProfile = CATALOG[productId].benefitProfile;
+  return CONCERN_CODES.reduce((s, c) => s + needVector[c] * benefitProfile[c], 0);
+}
+
+export function subScores(
+  u: UnderwritingResult,
+  needVector: Record<string, number>,
+  p: CustomerProfile,
+  rMin: number,
+  rMax: number,
+): SubScores {
+  const raw = rawR(needVector, u.productId);
+  const R = rMax === rMin ? 1 : (raw - rMin) / (rMax - rMin);
+  const A = affordability(u.monthlyPremiumUsd, p.monthlyBudgetUsd);
+  const spec = CATALOG[u.productId];
+  const extra = u.conditions.slice(spec.statutoryConditions.length);
+  const uPenalty = extra.reduce((sum, c) => sum + conditionPenalty(c.code), 0);
+  const U = Math.max(0, 1 - uPenalty);
+  const V = u.sumAssuredNeedUsd <= 0 ? 1 : Math.min(1, u.sumAssuredUsd / u.sumAssuredNeedUsd);
   return { R: r2(R), A: r2(A), U: r2(U), V: r2(V), E: eligibilityFactor(u.eligibility) };
 }
 
 export const score: Score = (profile, concern, underwriting) => {
-  const scored: ScoredProduct[] = underwriting.map((u) => {
-    const s = subScores(u, concern.needVector, profile);
-    const fit = Math.round(100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V));
-    const overBudget = u.monthlyPremiumCny > profile.monthlyBudgetCny;
-    const { reasonCodes, explanation } = explain(u, s, profile, concern.primary);
-    return { ...u, fitScore: fit, subScores: s, reasonCodes, explanation, overBudget, recommended: false };
+  const rawRByProduct = PRODUCT_IDS.map((id) => rawR(concern.needVector, id));
+  const rMin = Math.min(...rawRByProduct);
+  const rMax = Math.max(...rawRByProduct);
+  const limit = profile.monthlyBudgetUsd * (1 + OVER_BUDGET_TOLERANCE);
+
+  // Two passes: numbers first (fitScore, sort, pick the recommendation), then XAI text —
+  // explain() needs to know `recommended` to explain why THIS product won when its own R
+  // isn't the top match (see REC_BEST_AFFORDABLE).
+  const computed = underwriting.map((u) => {
+    const s = subScores(u, concern.needVector, profile, rMin, rMax);
+    let weighted = 100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V);
+    if (u.monthlyPremiumUsd > limit) {
+      weighted *= limit / u.monthlyPremiumUsd; // never outranks an affordable recommendation
+    }
+    const fit = Math.round(weighted);
+    const overBudget = u.monthlyPremiumUsd > profile.monthlyBudgetUsd;
+    return { u, s, fit, overBudget };
   });
 
-  scored.sort((a, b) => b.fitScore - a.fitScore);
-  const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
-  const top = scored.find((p) => p.subScores.E > 0 && p.monthlyPremiumCny <= limit);
-  if (top) top.recommended = true;
+  computed.sort((a, b) => b.fit - a.fit);
+  const topEntry = computed.find((e) => e.s.E > 0 && e.u.monthlyPremiumUsd <= limit);
+
+  const scored: ScoredProduct[] = computed.map((e) => {
+    const recommended = e === topEntry;
+    const { reasonCodes, explanation } = explain(e.u, e.s, profile, concern.primary, limit, recommended);
+    return { ...e.u, fitScore: e.fit, subScores: e.s, reasonCodes, explanation, overBudget: e.overBudget, recommended };
+  });
   return scored;
 };

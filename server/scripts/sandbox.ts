@@ -25,8 +25,8 @@ for (const persona of PERSONAS) {
     rec.products.map((p) => ({
       product: CATALOG[p.productId].name,
       fit: `${p.fitScore}%`,
-      sumAssured: `¥${p.sumAssuredCny.toLocaleString()}`,
-      premium: `¥${p.monthlyPremiumCny}/mo`,
+      sumAssured: `$${p.sumAssuredUsd.toLocaleString()}`,
+      premium: `$${p.monthlyPremiumUsd}/mo`,
       status: p.eligibility,
       top: p.recommended ? '★' : '',
     })),
@@ -42,5 +42,5 @@ console.log(`\nAudit chain valid: ${chainValid}`);
 const dir = resolve('../logs');
 mkdirSync(dir, { recursive: true });
 const file = resolve(dir, `sandbox-run-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-writeFileSync(file, JSON.stringify({ generatedAt: new Date().toISOString(), environment: 'sandbox', currency: 'CNY', chainValid, runs }, null, 2));
+writeFileSync(file, JSON.stringify({ generatedAt: new Date().toISOString(), environment: 'sandbox', currency: 'USD', chainValid, runs }, null, 2));
 console.log(`Saved ${file}`);

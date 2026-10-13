@@ -59,7 +59,7 @@ function conflictResult(req: BindRequest, reason: string): BindResult {
   return {
     status: 'FAILED',
     productId: req.productId,
-    monthlyPremiumCny: 0,
+    monthlyPremiumUsd: 0,
     message: reason,
   };
 }
@@ -87,10 +87,10 @@ async function doBind(req: BindRequest, rec: RecommendationResponse | undefined)
 
   let result: BindResult;
   if (!rec || !product) {
-    result = { status: 'FAILED', productId: req.productId, monthlyPremiumCny: 0, message: 'Unknown session or product' };
+    result = { status: 'FAILED', productId: req.productId, monthlyPremiumUsd: 0, message: 'Unknown session or product' };
     audit(req.sessionId, 'BIND_FAILED', result);
   } else if (product.eligibility === 'REFERRED' || product.eligibility === 'DECLINED') {
-    result = { status: 'FAILED', productId: req.productId, monthlyPremiumCny: product.monthlyPremiumCny, message: `Cannot bind: ${product.eligibility}` };
+    result = { status: 'FAILED', productId: req.productId, monthlyPremiumUsd: product.monthlyPremiumUsd, message: `Cannot bind: ${product.eligibility}` };
     audit(req.sessionId, 'BIND_FAILED', result);
   } else {
     // Sandbox insurer API + auto-debit set-up
@@ -99,7 +99,7 @@ async function doBind(req: BindRequest, rec: RecommendationResponse | undefined)
       status: 'ISSUED',
       policyNumber: `WB-SBX-${id}`,
       productId: req.productId,
-      monthlyPremiumCny: product.monthlyPremiumCny,
+      monthlyPremiumUsd: product.monthlyPremiumUsd,
       debitReference: `DD-SBX-${id}`,
     };
     // Authoritative state first. If this throws, the caller sees 500
