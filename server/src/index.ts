@@ -36,6 +36,29 @@ app.get(API.audit(':sessionId'), (req, res) => {
   res.json({ chainValid: verifyChain(), entries });
 });
 
+// Session recovery (Step 3B, owner: D).
+//
+// Path is inlined here (not in shared/contracts.ts) because the new
+// route has not yet been agreed by the team — that change belongs in
+// the shared/ PR once Step 3C (frontend integration) is reviewed.
+// Accepts the formats the backend itself generates:
+//   - UUIDv4 from `randomUUID()` in pipeline.recommend()  (the default)
+//   - `sbx-...` from scripts/sandbox.ts                  (the demo run)
+// Both are URL-safe identifiers of <= 128 chars containing only
+// letters, digits, `_` and `-`. Path-traversal and control characters
+// are rejected at the boundary.
+const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+const SESSIONS_PATH = '/api/v1/sessions/:sessionId';
+
+app.get(SESSIONS_PATH, (req, res) => {
+  const id = req.params.sessionId;
+  if (typeof id !== 'string' || !SESSION_ID_PATTERN.test(id)) {
+    return res.status(400).json({ error: 'malformed sessionId' });
+  }
+  const session = getSession(id);
+  res.json({ found: session !== undefined, session: session ?? null });
+});
+
 const PORT = Number(process.env.PORT ?? 4000);
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => console.log(`InsightShield API on http://localhost:${PORT}`));

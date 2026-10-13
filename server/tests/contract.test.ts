@@ -3,7 +3,7 @@
  * If these pass, the pieces fit together. Each owner adds tests for their own engine.
  */
 import './setupEnv';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { CATALOG, CONCERN_CODES, MOCK_PROFILE, PERSONAS, RULEBOOK_VERSION } from '@insightshield/shared';
 import { translateConcern } from '../src/engines/concern';
@@ -98,5 +98,54 @@ describe('API health (D)', () => {
     expect(typeof r.body.uptime).toBe('number');
     expect(r.body.uptime).toBeGreaterThanOrEqual(0);
     expect(r.body.rulebookVersion).toBe(RULEBOOK_VERSION);
+  });
+});
+
+describe('API session recovery (D, Step 3B)', () => {
+  it('returns found:true with the session for an existing sessionId', async () => {
+    const rec = await request(app).post('/api/v1/recommendations').send(MOCK_PROFILE);
+    expect(rec.status).toBe(200);
+    const id: string = rec.body.sessionId;
+    const got = await request(app).get(`/api/v1/sessions/${id}`);
+    expect(got.status).toBe(200);
+    expect(got.body.found).toBe(true);
+    expect(got.body.session).not.toBeNull();
+    expect(got.body.session.sessionId).toBe(id);
+    expect(got.body.session.rulebookVersion).toBe(RULEBOOK_VERSION);
+    expect(Array.isArray(got.body.session.products)).toBe(true);
+    expect(got.body.session.products.length).toBe(rec.body.products.length);
+  });
+
+  it('returns found:false with session:null for a well-formed but unknown sessionId', async () => {
+    // UUIDv4-shaped but never recommended by this test process.
+    const got = await request(app).get('/api/v1/sessions/00000000-0000-4000-8000-000000000000');
+    expect(got.status).toBe(200);
+    expect(got.body.found).toBe(false);
+    expect(got.body.session).toBeNull();
+  });
+
+  it('returns 400 with error="malformed sessionId" for a malformed sessionId', async () => {
+    // URL-encoded space decodes to a char the regex rejects.
+    const got = await request(app).get('/api/v1/sessions/has%20space');
+    expect(got.status).toBe(400);
+    expect(got.body).toEqual({ error: 'malformed sessionId' });
+  });
+
+  it('recovers a session after module reload (simulated process restart)', async () => {
+    // Recommend once: this persists to the on-disk sessions JsonMap.
+    const rec = await request(app).post('/api/v1/recommendations').send(MOCK_PROFILE);
+    expect(rec.status).toBe(200);
+    const id: string = rec.body.sessionId;
+
+    // Drop the module cache so the next import re-hydrates from disk
+    // — same as a real process restart.
+    vi.resetModules();
+    const { app: reloadedApp } = await import('../src/index');
+
+    const got = await request(reloadedApp).get(`/api/v1/sessions/${id}`);
+    expect(got.status).toBe(200);
+    expect(got.body.found).toBe(true);
+    expect(got.body.session.sessionId).toBe(id);
+    expect(got.body.session.products.length).toBe(rec.body.products.length);
   });
 });
