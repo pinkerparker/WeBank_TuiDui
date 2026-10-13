@@ -31,8 +31,8 @@ describe('Engine 2 — underwriting (C)', () => {
     for (const { profile } of PERSONAS) {
       for (const u of prescreen(profile, await translateConcern(profile))) {
         const spec = CATALOG[u.productId];
-        expect(u.sumAssuredCny).toBeGreaterThanOrEqual(spec.sumAssuredMinCny);
-        expect(u.sumAssuredCny).toBeLessThanOrEqual(spec.sumAssuredMaxCny);
+        expect(u.sumAssuredUsd).toBeGreaterThanOrEqual(spec.sumAssuredMinUsd);
+        expect(u.sumAssuredUsd).toBeLessThanOrEqual(spec.sumAssuredMaxUsd);
       }
     }
   });
@@ -40,7 +40,7 @@ describe('Engine 2 — underwriting (C)', () => {
     const c = await translateConcern(MOCK_PROFILE);
     const a = prescreen(MOCK_PROFILE, c);
     const b = prescreen({ ...MOCK_PROFILE, smoker: true }, c);
-    expect(b[1].monthlyPremiumCny).toBeGreaterThan(a[1].monthlyPremiumCny);
+    expect(b[1].monthlyPremiumUsd).toBeGreaterThan(a[1].monthlyPremiumUsd);
   });
   it('is deterministic (audit replay)', async () => {
     const c = await translateConcern(MOCK_PROFILE);

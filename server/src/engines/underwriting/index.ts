@@ -7,21 +7,27 @@ import type { Condition, CustomerProfile, Eligibility, Prescreen, ProductId, Und
 import { CATALOG, PRODUCT_IDS } from '@insightshield/shared';
 
 /**
- * Monthly rate per 1,000 CNY of sum assured, by age band.
+ * Monthly rate per 1,000 USD of sum assured, by age band.
  * Bands: [18-29, 30-39, 40-49, 50-59, 60-65]. Replaces the old linear ageFactor.
  * Calibrated so that, at each product's standard reference sum assured
- * (WECARE_HEALTH ¥1,000,000 — the MED-primary tier; WEPROTECT_CI ¥360,000 — the
- * default-income tier; WESAFE_ACCIDENT ¥200,000; WELIFE_DEBT ¥200,000 — the
- * no-loan tier), the unloaded base premium stays within [priceMinCny, priceMaxCny]
+ * (WECARE_HEALTH $141,000 — the MED-primary tier; WEPROTECT_CI $51,000 — the
+ * default-income tier; WESAFE_ACCIDENT $28,000; WELIFE_DEBT $28,000 — the
+ * no-loan tier), the unloaded base premium stays within [priceMinUsd, priceMaxUsd]
  * for every band and every gender. WESAFE_ACCIDENT is intentionally flat — it is
  * not age-rated (unchanged from before). Occupation loading is untouched.
+ *
+ * A rate per 1,000 units of currency is a dimensionless ratio, so these numbers are
+ * unchanged by the CNY -> USD migration as long as sum assured and premium both move
+ * with the same catalog (which they do). Only the sum-assured rounding step changed
+ * (nearest $1,000 instead of nearest ¥10,000), which is why small fitScore shifts are
+ * expected and accepted — see RULEBOOK-CHANGES.md §7.
  *
  * WEPROTECT_CI specifically: bands 1-3 reproduce the old per-age rate almost
  * exactly (it was never out of band there — the only historical base-only
  * violation was band 4, age ~52, at the reference sum assured). Only bands 4-5
- * are compressed, just enough to clear priceMaxCny at the reference sum
+ * are compressed, just enough to clear priceMaxUsd at the reference sum
  * assured. Smoker/NCD loadings — or a higher income-driven sum assured — can
- * still push the LOADED premium above priceMaxCny; that is allowed by design
+ * still push the LOADED premium above priceMaxUsd; that is allowed by design
  * and shows up as eligibility CONDITIONAL + condition PRICE_ABOVE_BAND, not a
  * rate problem to suppress.
  */
@@ -56,13 +62,13 @@ function genderFactor(id: ProductId, gender: CustomerProfile['gender']): number 
 function sumAssuredNeed(id: ProductId, p: CustomerProfile, primary: string): number {
   switch (id) {
     case 'WECARE_HEALTH':
-      return primary === 'MED' ? 1_000_000 : 500_000;
+      return primary === 'MED' ? 141_000 : 70_000;
     case 'WEPROTECT_CI':
-      return (p.annualIncomeCny ?? 120_000) * 3; // 3 years of income
+      return (p.annualIncomeUsd ?? 17_000) * 3; // 3 years of income
     case 'WESAFE_ACCIDENT':
-      return 200_000;
+      return 28_000;
     case 'WELIFE_DEBT':
-      return Math.max(p.webankLoanBalanceCny ?? 0, 200_000);
+      return Math.max(p.webankLoanBalanceUsd ?? 0, 28_000);
   }
 }
 
@@ -72,15 +78,15 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
   const loadings = { occupation: 0, smoker: 0, health: 0 };
   let eligibility: Eligibility = 'STANDARD';
   let waiting = spec.statutoryWaitingDays;
-  let saMax = spec.sumAssuredMaxCny;
+  let saMax = spec.sumAssuredMaxUsd;
 
   // Dimension 2: occupation (accident only)
   if (id === 'WESAFE_ACCIDENT') {
     if (p.occupation === 'field') loadings.occupation = 0.2;
     if (p.occupation === 'technician') {
       loadings.occupation = 0.5;
-      saMax = 100_000;
-      conditions.push({ code: 'CAP_CLASS3', description: 'Class 3 occupation: accident cover capped at ¥100,000' });
+      saMax = 14_000;
+      conditions.push({ code: 'CAP_CLASS3', description: 'Class 3 occupation: accident cover capped at $14,000' });
     }
   }
 
@@ -110,32 +116,32 @@ export function prescreenOne(id: ProductId, p: CustomerProfile, primary: string)
   const extra = conditions.length - spec.statutoryConditions.length;
   if (eligibility === 'STANDARD' && extra > 0) eligibility = 'CONDITIONAL';
 
-  // Dimension 5 + sizing: clamp to catalog range, round to 10,000
+  // Dimension 5 + sizing: clamp to catalog range, round to the nearest $1,000
   const need = sumAssuredNeed(id, p, primary);
-  const sa = roundTo(clamp(need, spec.sumAssuredMinCny, saMax), 10_000);
+  const sa = roundTo(clamp(need, spec.sumAssuredMinUsd, saMax), 1_000);
 
   // Dimension 1: base premium from demographics, then loadings
   const base = (sa / 1000) * ageBandRate(id, p.age) * genderFactor(id, p.gender);
   const loaded = base * (1 + loadings.occupation) * (1 + loadings.smoker) * (1 + loadings.health);
 
   // Minimum premium: keep the floor, but never apply it silently.
-  if (loaded < spec.priceMinCny) {
-    conditions.push({ code: 'MIN_PREMIUM_APPLIED', description: `Minimum premium of ¥${spec.priceMinCny}/month applied` });
+  if (loaded < spec.priceMinUsd) {
+    conditions.push({ code: 'MIN_PREMIUM_APPLIED', description: `Minimum premium of $${spec.priceMinUsd}/month applied` });
   }
-  const premium = Math.round(Math.max(loaded, spec.priceMinCny));
+  const premium = Math.round(Math.max(loaded, spec.priceMinUsd));
 
   // Maximum premium: never clamp — flag for review instead.
-  if (premium > spec.priceMaxCny) {
-    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard ¥${spec.priceMaxCny}/month maximum, so this quote is conditional` });
+  if (premium > spec.priceMaxUsd) {
+    conditions.push({ code: 'PRICE_ABOVE_BAND', description: `Premium exceeds the standard $${spec.priceMaxUsd}/month maximum, so this quote is conditional` });
     if (eligibility === 'STANDARD') eligibility = 'CONDITIONAL';
   }
 
   return {
     productId: id,
     eligibility,
-    sumAssuredCny: sa,
-    sumAssuredNeedCny: need,
-    monthlyPremiumCny: premium,
+    sumAssuredUsd: sa,
+    sumAssuredNeedUsd: need,
+    monthlyPremiumUsd: premium,
     loadings,
     waitingPeriodDays: waiting,
     conditions,

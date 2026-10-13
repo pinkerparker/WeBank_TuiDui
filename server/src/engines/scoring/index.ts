@@ -41,12 +41,12 @@ export function subScores(
 ): SubScores {
   const raw = rawR(needVector, u.productId);
   const R = rMax === rMin ? 1 : (raw - rMin) / (rMax - rMin);
-  const A = affordability(u.monthlyPremiumCny, p.monthlyBudgetCny);
+  const A = affordability(u.monthlyPremiumUsd, p.monthlyBudgetUsd);
   const spec = CATALOG[u.productId];
   const extra = u.conditions.slice(spec.statutoryConditions.length);
   const uPenalty = extra.reduce((sum, c) => sum + conditionPenalty(c.code), 0);
   const U = Math.max(0, 1 - uPenalty);
-  const V = u.sumAssuredNeedCny <= 0 ? 1 : Math.min(1, u.sumAssuredCny / u.sumAssuredNeedCny);
+  const V = u.sumAssuredNeedUsd <= 0 ? 1 : Math.min(1, u.sumAssuredUsd / u.sumAssuredNeedUsd);
   return { R: r2(R), A: r2(A), U: r2(U), V: r2(V), E: eligibilityFactor(u.eligibility) };
 }
 
@@ -54,7 +54,7 @@ export const score: Score = (profile, concern, underwriting) => {
   const rawRByProduct = PRODUCT_IDS.map((id) => rawR(concern.needVector, id));
   const rMin = Math.min(...rawRByProduct);
   const rMax = Math.max(...rawRByProduct);
-  const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
+  const limit = profile.monthlyBudgetUsd * (1 + OVER_BUDGET_TOLERANCE);
 
   // Two passes: numbers first (fitScore, sort, pick the recommendation), then XAI text —
   // explain() needs to know `recommended` to explain why THIS product won when its own R
@@ -62,16 +62,16 @@ export const score: Score = (profile, concern, underwriting) => {
   const computed = underwriting.map((u) => {
     const s = subScores(u, concern.needVector, profile, rMin, rMax);
     let weighted = 100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V);
-    if (u.monthlyPremiumCny > limit) {
-      weighted *= limit / u.monthlyPremiumCny; // never outranks an affordable recommendation
+    if (u.monthlyPremiumUsd > limit) {
+      weighted *= limit / u.monthlyPremiumUsd; // never outranks an affordable recommendation
     }
     const fit = Math.round(weighted);
-    const overBudget = u.monthlyPremiumCny > profile.monthlyBudgetCny;
+    const overBudget = u.monthlyPremiumUsd > profile.monthlyBudgetUsd;
     return { u, s, fit, overBudget };
   });
 
   computed.sort((a, b) => b.fit - a.fit);
-  const topEntry = computed.find((e) => e.s.E > 0 && e.u.monthlyPremiumCny <= limit);
+  const topEntry = computed.find((e) => e.s.E > 0 && e.u.monthlyPremiumUsd <= limit);
 
   const scored: ScoredProduct[] = computed.map((e) => {
     const recommended = e === topEntry;

@@ -17,7 +17,7 @@ import type { ConcernCode, CustomerProfile, SubScores, UnderwritingResult } from
 import { CATALOG, CONCERN_CODES } from '@insightshield/shared';
 import { CONDITION_SEVERITY, severityOf } from './severity';
 
-const yuan = (n: number) => `¥${Math.round(n).toLocaleString('en-US')}`;
+const usd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 
 /** Every raw Condition.code Engine 2 can emit — statutory (per product) + non-statutory. */
 const ALL_CONDITION_CODES = [
@@ -52,7 +52,7 @@ export function explain(
   s: SubScores,
   p: CustomerProfile,
   primary: ConcernCode,
-  budgetLimitCny: number,
+  budgetLimitUsd: number,
   recommended: boolean,
 ) {
   const spec = CATALOG[u.productId];
@@ -62,10 +62,10 @@ export function explain(
   // 1. Relevance (R)
   if (spec.concern === primary) {
     codes.push(`R_HIGH_${primary}`);
-    lines.push(`Matches your main concern; ${spec.name} covers up to ${yuan(u.sumAssuredCny)}.`);
+    lines.push(`Matches your main concern; ${spec.name} covers up to ${usd(u.sumAssuredUsd)}.`);
   } else if (s.R < 0.2) {
     codes.push('R_LOW');
-    lines.push('Only loosely related to the concern you selected.');
+    lines.push('Only loosely related to your main concern.');
   }
 
   // 2. Underwriting (U)
@@ -92,14 +92,14 @@ export function explain(
   for (const c of u.conditions) codes.push(c.code);
 
   // 4. Affordability (A)
-  if (u.monthlyPremiumCny <= p.monthlyBudgetCny) {
+  if (u.monthlyPremiumUsd <= p.monthlyBudgetUsd) {
     codes.push('A_WITHIN_BUDGET');
   } else {
     codes.push('A_OVER_BUDGET');
-    lines.push(`Estimated ${yuan(u.monthlyPremiumCny)}/month is above your ${yuan(p.monthlyBudgetCny)} budget.`);
-    if (u.monthlyPremiumCny > budgetLimitCny) {
+    lines.push(`Estimated ${usd(u.monthlyPremiumUsd)}/month is above your ${usd(p.monthlyBudgetUsd)} budget.`);
+    if (u.monthlyPremiumUsd > budgetLimitUsd) {
       codes.push('A_OVER_BUDGET_SCALED');
-      lines.push(`The match score was reduced because the premium exceeds your budget limit of ${yuan(budgetLimitCny)}/month.`);
+      lines.push(`The match score was reduced because the premium exceeds your budget limit of ${usd(budgetLimitUsd)}/month.`);
     }
   }
 
@@ -111,7 +111,7 @@ export function explain(
     // already states the amount and the reason — saying it again here would repeat the
     // same fact twice. Only the generic catalog-max cap needs its own sentence.
     if (!cappedByClass) {
-      lines.push(`Cover is capped at ${yuan(u.sumAssuredCny)} by product limits.`);
+      lines.push(`Cover is capped at ${usd(u.sumAssuredUsd)} by product limits.`);
     }
   }
 
