@@ -2,9 +2,8 @@ import { useState } from 'react';
 import type { BindResult, RecommendationResponse } from '@insightshield/shared';
 import { CATALOG } from '@insightshield/shared';
 import { bind } from '../api/client';
+import { formatUsd } from '../money';
 import { T } from '../i18n';
-
-const yuan = (n: number) => `¥${n.toLocaleString('en-US')}`;
 
 export function MatchChart({ rec }: { rec: RecommendationResponse }) {
   return (
@@ -46,8 +45,8 @@ export function RecommendedCard({ rec }: { rec: RecommendationResponse }) {
       <p className="muted">{CATALOG[top.productId].type}</p>
       <div className="stats">
         <div className="stat"><b>{top.fitScore}%</b><span>{T.matchScore}</span></div>
-        <div className="stat"><b>{yuan(top.sumAssuredCny)}</b><span>{T.sumAssured}</span></div>
-        <div className="stat"><b>{yuan(top.monthlyPremiumCny)}</b><span>{T.premium}{top.overBudget ? ` · ${T.overBudget}` : ''}</span></div>
+        <div className="stat"><b>{formatUsd(top.sumAssuredUsd)}</b><span>{T.sumAssured}</span></div>
+        <div className="stat"><b>{formatUsd(top.monthlyPremiumUsd)}</b><span>{T.premium}{top.overBudget ? ` · ${T.overBudget}` : ''}</span></div>
       </div>
       <p className="why">{top.explanation}</p>
       {state === 'idle' && <button className="buy" onClick={onBuy}>{T.buy}</button>}
@@ -75,8 +74,8 @@ export function ComparisonTable({ rec }: { rec: RecommendationResponse }) {
               <tr key={p.productId} className={p.recommended ? 'hl' : ''}>
                 <td><b>{CATALOG[p.productId].name}</b></td>
                 <td className="mono">{p.fitScore}%</td>
-                <td className="mono">{yuan(p.sumAssuredCny)}</td>
-                <td className="mono">{yuan(p.monthlyPremiumCny)}</td>
+                <td className="mono">{formatUsd(p.sumAssuredUsd)}</td>
+                <td className="mono">{formatUsd(p.monthlyPremiumUsd)}</td>
                 <td>{p.eligibility}</td>
                 <td className="small">{p.conditions.map((c) => c.description).join(' · ')}</td>
               </tr>
