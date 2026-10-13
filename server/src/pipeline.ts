@@ -7,12 +7,20 @@ import type { CustomerProfile, RecommendationResponse } from '@insightshield/sha
 import { RULEBOOK_VERSION } from '@insightshield/shared';
 import { audit } from './audit';
 import { sessions } from './store/persistence';
+import { redactPii } from './engines/concern/pii';
 import { translateConcern } from './engines/concern';
 import { prescreen } from './engines/underwriting';
 import { score } from './engines/scoring';
 
 export async function recommend(profile: CustomerProfile, sessionId: string = randomUUID()): Promise<RecommendationResponse> {
-  audit(sessionId, 'SESSION_START', { profile, rulebookVersion: RULEBOOK_VERSION });
+  // SESSION_START carries the full profile into the audit ledger. Redact
+  // concernText before logging so free-form PII (name, email, phone, URL)
+  // does not get written to the on-disk JSONL. The raw profile still flows
+  // into the engines, the API response, and the persisted session.
+  const auditProfile = profile.concernText
+    ? { ...profile, concernText: redactPii(profile.concernText).text }
+    : profile;
+  audit(sessionId, 'SESSION_START', { profile: auditProfile, rulebookVersion: RULEBOOK_VERSION });
 
   const concern = await translateConcern(profile);
   audit(sessionId, 'CONCERN_TRANSLATED', concern);
