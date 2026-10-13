@@ -3,7 +3,7 @@
  * 3 health values, so each detailed choice maps onto one of them before sending.
  * Mappings are a first pass — have the underwriting owner (C) review them.
  */
-import type { Health, Occupation } from '@insightshield/shared';
+import type { CustomerProfile, Health, Occupation } from '@insightshield/shared';
 
 export interface Job { id: string; label: string; group: string; cls: Occupation }
 
@@ -82,3 +82,8 @@ export function healthFrom(conditionIds: string[]): Health {
 
 /** Form answers that don't fit the API contract directly; kept in App so they survive navigation. */
 export interface ProfileDetails { jobId: string; conditions: string[] }
+
+/** Starting answers for the form (a typical first visitor); the user changes them straight away. */
+export const DEFAULT_PROFILE: CustomerProfile = {
+  gender: 'female', age: 30, occupation: 'desk', health: 'normal', smoker: false, concern: 'MED', monthlyBudgetUsd: 25,
+};
