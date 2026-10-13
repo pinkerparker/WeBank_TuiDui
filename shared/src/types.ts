@@ -2,7 +2,7 @@
  * ============================================================
  *  SHARED CONTRACT — ทุกคนใช้ไฟล์นี้ร่วมกัน
  *  ห้ามแก้โดยไม่แจ้งทีมก่อน (เปิด PR + ให้ทุกคน approve)
- *  All money values are in CNY (Chinese Yuan).
+ *  All money values are in USD (US dollars).
  * ============================================================
  */
 
@@ -27,10 +27,10 @@ export interface CustomerProfile {
   smoker: boolean;
   concern: ConcernCode; // chip selected in the app
   concernText?: string; // optional free text, e.g. "กลัวค่าห้อง รพ. แพง"
-  monthlyBudgetCny: number;
-  annualIncomeCny?: number;
+  monthlyBudgetUsd: number;
+  annualIncomeUsd?: number;
   dependants?: number;
-  webankLoanBalanceCny?: number;
+  webankLoanBalanceUsd?: number;
 }
 
 /** Engine 1 output. Values sum to 1. */
@@ -54,9 +54,9 @@ export interface Condition {
 export interface UnderwritingResult {
   productId: ProductId;
   eligibility: Eligibility;
-  sumAssuredCny: number;
-  sumAssuredNeedCny: number;
-  monthlyPremiumCny: number;
+  sumAssuredUsd: number;
+  sumAssuredNeedUsd: number;
+  monthlyPremiumUsd: number;
   loadings: { occupation: number; smoker: number; health: number };
   waitingPeriodDays: number;
   conditions: Condition[];
@@ -100,7 +100,7 @@ export interface BindResult {
   status: 'ISSUED' | 'FAILED';
   policyNumber?: string;
   productId: ProductId;
-  monthlyPremiumCny: number;
+  monthlyPremiumUsd: number;
   debitReference?: string;
   message?: string;
 }

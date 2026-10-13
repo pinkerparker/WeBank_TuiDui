@@ -1,6 +1,6 @@
 # InsightShield — Starter Repo (4-person team)
 
-ระบบ AI จับคู่แผนประกันภัยสำหรับ WeBank Wealth+ · React + Node (TypeScript) · หน่วยเงิน **CNY (¥)**
+ระบบ AI จับคู่แผนประกันภัยสำหรับ WeBank Wealth+ · React + Node (TypeScript) · หน่วยเงิน **USD ($)**
 
 โปรเจกต์นี้รันได้ตั้งแต่วันแรก: ทุก Engine มีเวอร์ชันพื้นฐานที่ทำงานจริงแล้ว แต่ละคนเข้าไปพัฒนาส่วนของตัวเองต่อได้เลย โดยไม่ต้องรอใคร
 
@@ -33,7 +33,7 @@ Frontend ทำงานแบบไม่มี backend ได้: `npm run dev
 shared/src/
   types.ts        <- รูปแบบข้อมูลที่ส่งหากัน (สัญญากลาง)
   contracts.ts    <- ลายเซ็นฟังก์ชันของแต่ละ Engine + endpoints
-  catalog.ts      <- 4 ผลิตภัณฑ์ (CNY) = ขอบเขตวงเงิน
+  catalog.ts      <- 4 ผลิตภัณฑ์ (USD) = ขอบเขตวงเงิน
   mocks.ts        <- ข้อมูลปลอม + ลูกค้าจำลอง 5 เคส
 server/src/
   engines/concern/       (B)

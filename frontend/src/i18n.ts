@@ -16,7 +16,7 @@ export const T = {
   budget: 'งบประมาณต่อเดือน',
   matchTitle: 'ดัชนีความเหมาะสม (Match Rate)',
   recommended: 'แนะนำสูงสุดสำหรับคุณ (RECOMMENDED)',
-  matchScore: 'Match Score', sumAssured: 'วงเงินคุ้มครอง', premium: 'เบี้ยประเมิน (¥/เดือน)',
+  matchScore: 'Match Score', sumAssured: 'วงเงินคุ้มครอง', premium: 'เบี้ยประเมิน ($/เดือน)',
   overBudget: 'เกินงบ',
   compareTitle: 'สรุปเปรียบเทียบแผนประกันภัย WeBank Catalog',
   colPlan: 'ชื่อแผน', colFit: 'ความเหมาะสม', colSA: 'วงเงินคุ้มครอง', colPremium: 'เบี้ย/เดือน', colStatus: 'สถานะ', colConditions: 'เงื่อนไข',

@@ -30,9 +30,9 @@ async function runPipeline(profile: CustomerProfile) {
 function assertValidOutput(underwriting: ReturnType<typeof prescreen>, scored: ReturnType<typeof score>) {
   for (const u of underwriting) {
     const spec = CATALOG[u.productId];
-    expect(Number.isFinite(u.monthlyPremiumCny)).toBe(true);
-    expect(u.monthlyPremiumCny).toBeGreaterThan(0);
-    expect(u.sumAssuredCny).toBeGreaterThanOrEqual(spec.sumAssuredMinCny);
+    expect(Number.isFinite(u.monthlyPremiumUsd)).toBe(true);
+    expect(u.monthlyPremiumUsd).toBeGreaterThan(0);
+    expect(u.sumAssuredUsd).toBeGreaterThanOrEqual(spec.sumAssuredMinUsd);
     expect(ELIGIBILITIES).toContain(u.eligibility);
   }
   for (const p of scored) {
@@ -55,28 +55,28 @@ const BASE_PROFILE: CustomerProfile = {
   health: 'normal',
   smoker: false,
   concern: 'MED',
-  monthlyBudgetCny: 240,
+  monthlyBudgetUsd: 33.6,
 };
 
 describe('Engine 2/3 — edge cases', () => {
   it.each([
-    [18, 20],
-    [18, 5000],
-    [65, 20],
-    [65, 5000],
-  ])('age %i, budget ¥%i: no crash, every field in its documented range', async (age, monthlyBudgetCny) => {
-    const profile: CustomerProfile = { ...BASE_PROFILE, age, monthlyBudgetCny };
+    [18, 3],
+    [18, 700],
+    [65, 3],
+    [65, 700],
+  ])('age %i, budget $%i: no crash, every field in its documented range', async (age, monthlyBudgetUsd) => {
+    const profile: CustomerProfile = { ...BASE_PROFILE, age, monthlyBudgetUsd };
     const { underwriting, scored } = await runPipeline(profile);
     assertValidOutput(underwriting, scored);
   });
 
-  it('monthlyBudgetCny at the validator minimum (20): affordability and overBudget stay sane', async () => {
-    const profile: CustomerProfile = { ...BASE_PROFILE, monthlyBudgetCny: 20 };
+  it('monthlyBudgetUsd at the validator minimum (3): affordability and overBudget stay sane', async () => {
+    const profile: CustomerProfile = { ...BASE_PROFILE, monthlyBudgetUsd: 3 };
     const { underwriting, scored } = await runPipeline(profile);
     assertValidOutput(underwriting, scored);
     for (const p of scored) {
       const u = underwriting.find((x) => x.productId === p.productId)!;
-      expect(p.overBudget).toBe(u.monthlyPremiumCny > 20);
+      expect(p.overBudget).toBe(u.monthlyPremiumUsd > 3);
     }
   });
 
@@ -88,7 +88,7 @@ describe('Engine 2/3 — edge cases', () => {
       health: 'major_surgery',
       smoker: true,
       concern: 'ACC',
-      monthlyBudgetCny: 300,
+      monthlyBudgetUsd: 42,
     };
     const { underwriting, scored } = await runPipeline(profile);
     assertValidOutput(underwriting, scored);
@@ -96,23 +96,23 @@ describe('Engine 2/3 — edge cases', () => {
     expect(ci.eligibility).toBe('REFERRED'); // major_surgery refers CI regardless of the other two traits
   });
 
-  it('webankLoanBalanceCny: 0 (explicit literal, not omitted) floors WeLife Debt Shield need at ¥200,000', async () => {
-    const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'DEBT', webankLoanBalanceCny: 0 };
+  it('webankLoanBalanceUsd: 0 (explicit literal, not omitted) floors WeLife Debt Shield need at $28,000', async () => {
+    const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'DEBT', webankLoanBalanceUsd: 0 };
     const { underwriting } = await runPipeline(profile);
     const debt = underwriting.find((u) => u.productId === 'WELIFE_DEBT')!;
-    expect(debt.sumAssuredNeedCny).toBe(200_000);
-    expect(debt.sumAssuredCny).toBeGreaterThanOrEqual(CATALOG.WELIFE_DEBT.sumAssuredMinCny);
+    expect(debt.sumAssuredNeedUsd).toBe(28_000);
+    expect(debt.sumAssuredUsd).toBeGreaterThanOrEqual(CATALOG.WELIFE_DEBT.sumAssuredMinUsd);
   });
 
-  it('annualIncomeCny: 0 (explicit) makes WeProtect CI need 0, and V = 1 via the explicit guard', async () => {
-    // `annualIncomeCny ?? 120_000` only falls back on null/undefined, not on 0 — so an
+  it('annualIncomeUsd: 0 (explicit) makes WeProtect CI need 0, and V = 1 via the explicit guard', async () => {
+    // `annualIncomeUsd ?? 16_800` only falls back on null/undefined, not on 0 — so an
     // explicit 0 survives as a real 0 need. Stage 3 added an explicit guard
-    // (sumAssuredNeedCny <= 0 -> V = 1) instead of relying on min(1, sa/0) = min(1,
+    // (sumAssuredNeedUsd <= 0 -> V = 1) instead of relying on min(1, sa/0) = min(1,
     // Infinity) happening to not be NaN.
-    const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'INC', annualIncomeCny: 0 };
+    const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'INC', annualIncomeUsd: 0 };
     const { underwriting, scored } = await runPipeline(profile);
     const ciUnderwriting = underwriting.find((u) => u.productId === 'WEPROTECT_CI')!;
-    expect(ciUnderwriting.sumAssuredNeedCny).toBe(0);
+    expect(ciUnderwriting.sumAssuredNeedUsd).toBe(0);
     const ciScored = scored.find((p) => p.productId === 'WEPROTECT_CI')!;
     expect(ciScored.subScores.V).toBe(1);
   });
@@ -151,7 +151,7 @@ describe('Engine 2/3 — invariants (property tests)', () => {
     };
     for (const age of ages) {
       const underwriting = prescreen({ ...BASE_PROFILE, age }, concern);
-      for (const u of underwriting) premiumsByProduct[u.productId].push(u.monthlyPremiumCny);
+      for (const u of underwriting) premiumsByProduct[u.productId].push(u.monthlyPremiumUsd);
     }
     for (const id of PRODUCT_IDS) {
       const seq = premiumsByProduct[id];
@@ -167,37 +167,37 @@ describe('Engine 2/3 — invariants (property tests)', () => {
       const base = prescreen(profile, concern);
       const smoking = prescreen({ ...profile, smoker: true }, concern);
       for (let i = 0; i < base.length; i++) {
-        expect(smoking[i].monthlyPremiumCny).toBeGreaterThanOrEqual(base[i].monthlyPremiumCny);
+        expect(smoking[i].monthlyPremiumUsd).toBeGreaterThanOrEqual(base[i].monthlyPremiumUsd);
       }
     }
   });
 
   it('higher budget never lowers affordability A, for a fixed premium', () => {
-    const premium = 250;
-    const budgets = [20, 50, 100, 150, 200, 250, 300, 500, 1000, 2000, 5000];
+    const premium = 35;
+    const budgets = [3, 7, 14, 21, 28, 35, 42, 70, 140, 280, 700];
     const values = budgets.map((b) => affordability(premium, b));
     for (let i = 1; i < values.length; i++) {
       expect(values[i]).toBeGreaterThanOrEqual(values[i - 1]);
     }
   });
 
-  it('Class 3 pays a higher (or equal) RATE per ¥ of sum assured than Class 1, same product/profile', async () => {
-    // Per team decision: the invariant is premium-per-¥-of-cover, not total premium —
-    // Class 3's total premium is lower (¥25 vs ¥30) but it also carries half the sum
+  it('Class 3 pays a higher (or equal) RATE per $ of sum assured than Class 1, same product/profile', async () => {
+    // Per team decision: the invariant is premium-per-$-of-cover, not total premium —
+    // Class 3's total premium is lower ($3.50 vs $4.20) but it also carries half the sum
     // assured, so a lower total for less cover is correct, not a defect. The rate itself
     // is already higher for Class 3 (occupation loading multiplies the rate directly).
     const profile = { ...BASE_PROFILE, concern: 'ACC' as const };
     const concern = await translateConcern(profile);
     const class1 = prescreen({ ...profile, occupation: 'desk' }, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
     const class3 = prescreen({ ...profile, occupation: 'technician' }, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
-    const rate1 = class1.monthlyPremiumCny / class1.sumAssuredCny;
-    const rate3 = class3.monthlyPremiumCny / class3.sumAssuredCny;
+    const rate1 = class1.monthlyPremiumUsd / class1.sumAssuredUsd;
+    const rate3 = class3.monthlyPremiumUsd / class3.sumAssuredUsd;
     expect(rate3).toBeGreaterThanOrEqual(rate1);
   });
 });
 
 describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
-  it('WeProtect CI loaded premium for persona P2 now correctly discloses exceeding priceMaxCny instead of silently exceeding it (was defect #3a: ¥351 > ¥300, no flag)', async () => {
+  it('WeProtect CI loaded premium for persona P2 now correctly discloses exceeding priceMaxUsd instead of silently exceeding it (was defect #3a: ¥351 > ¥300 in the old CNY catalog, no flag)', async () => {
     // P2's smoker + NCD loadings are genuine elevated risk — the loaded premium is
     // allowed to exceed the band by design. The old bug was that it exceeded SILENTLY.
     // The base rate itself was never the problem here (it stayed well within band both
@@ -206,41 +206,41 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     const { profile } = PERSONAS.find((p) => p.id === 'P2')!;
     const concern = await translateConcern(profile);
     const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
-    expect(ci.monthlyPremiumCny).toBeGreaterThan(CATALOG.WEPROTECT_CI.priceMaxCny);
+    expect(ci.monthlyPremiumUsd).toBeGreaterThan(CATALOG.WEPROTECT_CI.priceMaxUsd);
     expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(true);
     expect(ci.eligibility).toBe('CONDITIONAL');
   });
 
-  it('WeProtect CI base premium stays within priceMaxCny for persona P5 at age 52 (was defect #3b: ¥302.40 > ¥300)', async () => {
+  it('WeProtect CI base premium stays within priceMaxUsd for persona P5 at age 52 (was defect #3b: ¥302.40 > ¥300 in the old CNY catalog)', async () => {
     const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
     const concern = await translateConcern(profile);
     const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
-    expect(ci.monthlyPremiumCny).toBeLessThanOrEqual(CATALOG.WEPROTECT_CI.priceMaxCny);
+    expect(ci.monthlyPremiumUsd).toBeLessThanOrEqual(CATALOG.WEPROTECT_CI.priceMaxUsd);
     expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(false);
   });
 
-  it('WeCare Health+ 1,000,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130)', async () => {
-    // Defect #4 is fixed for the 1M tier only — see the next test for the 500k tier,
+  it('WeCare Health+ $140,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130 in the old CNY catalog)', async () => {
+    // Defect #4 is fixed for the $140k tier only — see the next test for the $70k tier,
     // which is a known, accepted limitation (section 7 decision in RULEBOOK-CHANGES.md).
     const profile = { ...BASE_PROFILE, concern: 'MED' as const };
     const concern = await translateConcern(profile);
     const at25 = prescreen({ ...profile, age: 25 }, concern).find((u) => u.productId === 'WECARE_HEALTH')!;
     const at30 = prescreen({ ...profile, age: 30 }, concern).find((u) => u.productId === 'WECARE_HEALTH')!;
-    expect(at30.monthlyPremiumCny).toBeGreaterThan(at25.monthlyPremiumCny);
+    expect(at30.monthlyPremiumUsd).toBeGreaterThan(at25.monthlyPremiumUsd);
     expect(at25.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
     expect(at30.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
   });
 
-  it('WeCare Health+ 500,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
-    // Accepted limitation: the 500k tier needs its own rate tier to differentiate by
+  it('WeCare Health+ $70,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
+    // Accepted limitation: the $70k tier needs its own rate tier to differentiate by
     // age (out of scope — catalog.ts is shared/read-only, and a sum-assured-tiered rate
     // table is more scope than "replace the age factor"). What the rate table DOES
     // guarantee even here: the floor is disclosed, not silent.
-    const profile = { ...BASE_PROFILE, concern: 'ACC' as const }; // primary=ACC -> 500k tier
+    const profile = { ...BASE_PROFILE, concern: 'ACC' as const }; // primary=ACC -> $70k tier
     const concern = await translateConcern(profile);
     const at25 = prescreen({ ...profile, age: 25 }, concern).find((u) => u.productId === 'WECARE_HEALTH')!;
     const at30 = prescreen({ ...profile, age: 30 }, concern).find((u) => u.productId === 'WECARE_HEALTH')!;
-    expect(at25.monthlyPremiumCny).toBe(at30.monthlyPremiumCny); // still flat, by design limitation
+    expect(at25.monthlyPremiumUsd).toBe(at30.monthlyPremiumUsd); // still flat, by design limitation
     expect(at25.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(true);
     expect(at30.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(true);
   });
@@ -249,7 +249,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     const profile: CustomerProfile = { ...BASE_PROFILE, age: 62, smoker: true, health: 'ncd', concern: 'INC' };
     const concern = await translateConcern(profile);
     const ci = prescreen(profile, concern).find((u) => u.productId === 'WEPROTECT_CI')!;
-    expect(ci.monthlyPremiumCny).toBeGreaterThan(CATALOG.WEPROTECT_CI.priceMaxCny);
+    expect(ci.monthlyPremiumUsd).toBeGreaterThan(CATALOG.WEPROTECT_CI.priceMaxUsd);
     expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(true);
     expect(ci.eligibility).toBe('CONDITIONAL');
   });
@@ -267,9 +267,9 @@ describe('Engine 2/3 — stage 3 (scoring): U penalty by condition type', () => 
   const baseU: UnderwritingResult = {
     productId: 'WECARE_HEALTH',
     eligibility: 'STANDARD',
-    sumAssuredCny: 500_000,
-    sumAssuredNeedCny: 500_000,
-    monthlyPremiumCny: 130,
+    sumAssuredUsd: 70_000,
+    sumAssuredNeedUsd: 70_000,
+    monthlyPremiumUsd: 18.2,
     loadings: { occupation: 0, smoker: 0, health: 0 },
     waitingPeriodDays: 30,
     conditions: [...CATALOG.WECARE_HEALTH.statutoryConditions],
@@ -342,9 +342,9 @@ describe('Engine 2/3 — stage 3 (scoring): R normalisation', () => {
       const u: UnderwritingResult = {
         productId: id,
         eligibility: 'STANDARD',
-        sumAssuredCny: CATALOG[id].sumAssuredMinCny,
-        sumAssuredNeedCny: CATALOG[id].sumAssuredMinCny,
-        monthlyPremiumCny: CATALOG[id].priceMinCny,
+        sumAssuredUsd: CATALOG[id].sumAssuredMinUsd,
+        sumAssuredNeedUsd: CATALOG[id].sumAssuredMinUsd,
+        monthlyPremiumUsd: CATALOG[id].priceMinUsd,
         loadings: { occupation: 0, smoker: 0, health: 0 },
         waitingPeriodDays: CATALOG[id].statutoryWaitingDays,
         conditions: [...CATALOG[id].statutoryConditions],
@@ -392,10 +392,10 @@ describe('Engine 2/3 — stage 3 fix: over-budget scaling', () => {
       const concern = await translateConcern(profile);
       const underwriting = prescreen(profile, concern);
       const scored = score(profile, concern, underwriting);
-      const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
+      const limit = profile.monthlyBudgetUsd * (1 + OVER_BUDGET_TOLERANCE);
       for (const p of scored) {
         const unscaled = Math.round(rawWeighted(p.subScores));
-        if (p.monthlyPremiumCny > limit) {
+        if (p.monthlyPremiumUsd > limit) {
           expect(p.fitScore).toBeLessThanOrEqual(unscaled);
         } else {
           expect(p.fitScore).toBe(unscaled);

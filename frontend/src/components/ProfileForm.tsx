@@ -38,8 +38,8 @@ export function ProfileForm({ value: p, onChange }: Props) {
       <Chips<ConcernCode> options={[['MED', T.MED], ['INC', T.INC], ['ACC', T.ACC], ['DEBT', T.DEBT]]} value={p.concern} onPick={(concern) => set({ concern })} />
       <input className="text" placeholder={T.concernText} value={p.concernText ?? ''} onChange={(e) => set({ concernText: e.target.value || undefined })} />
 
-      <div className="row"><span>{T.budget}</span><b className="mono accent">¥{p.monthlyBudgetCny}</b></div>
-      <input type="range" min={50} max={800} step={10} value={p.monthlyBudgetCny} onChange={(e) => set({ monthlyBudgetCny: Number(e.target.value) })} />
+      <div className="row"><span>{T.budget}</span><b className="mono accent">${p.monthlyBudgetUsd}</b></div>
+      <input type="range" min={7} max={112} step={1} value={p.monthlyBudgetUsd} onChange={(e) => set({ monthlyBudgetUsd: Number(e.target.value) })} />
     </div>
   );
 }

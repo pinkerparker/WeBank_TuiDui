@@ -17,12 +17,12 @@ export function bindPolicy(req: BindRequest, rec: RecommendationResponse | undef
   const product = rec?.products.find((p) => p.productId === req.productId);
 
   if (!rec || !product) {
-    const fail: BindResult = { status: 'FAILED', productId: req.productId, monthlyPremiumCny: 0, message: 'Unknown session or product' };
+    const fail: BindResult = { status: 'FAILED', productId: req.productId, monthlyPremiumUsd: 0, message: 'Unknown session or product' };
     audit(req.sessionId, 'BIND_FAILED', fail);
     return fail;
   }
   if (product.eligibility === 'REFERRED' || product.eligibility === 'DECLINED') {
-    const fail: BindResult = { status: 'FAILED', productId: req.productId, monthlyPremiumCny: product.monthlyPremiumCny, message: `Cannot bind: ${product.eligibility}` };
+    const fail: BindResult = { status: 'FAILED', productId: req.productId, monthlyPremiumUsd: product.monthlyPremiumUsd, message: `Cannot bind: ${product.eligibility}` };
     audit(req.sessionId, 'BIND_FAILED', fail);
     return fail;
   }
@@ -33,7 +33,7 @@ export function bindPolicy(req: BindRequest, rec: RecommendationResponse | undef
     status: 'ISSUED',
     policyNumber: `WB-SBX-${id}`,
     productId: req.productId,
-    monthlyPremiumCny: product.monthlyPremiumCny,
+    monthlyPremiumUsd: product.monthlyPremiumUsd,
     debitReference: `DD-SBX-${id}`,
   };
   issued.set(req.idempotencyKey, result);
