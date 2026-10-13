@@ -8,10 +8,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CATALOG, MOCK_PROFILE, PERSONAS, PRODUCT_IDS } from '@insightshield/shared';
-import type { CustomerProfile, Eligibility, ProductId } from '@insightshield/shared';
+import type { CustomerProfile, Eligibility, ProductId, SubScores, UnderwritingResult } from '@insightshield/shared';
 import { translateConcern } from '../src/engines/concern';
 import { prescreen } from '../src/engines/underwriting';
-import { score, affordability } from '../src/engines/scoring';
+import { score, affordability, subScores, WEIGHTS, OVER_BUDGET_TOLERANCE } from '../src/engines/scoring';
+import { REASON_CODES } from '../src/engines/scoring/explain';
+
+/** The weighted sum before the over-budget scaling factor — duplicated here deliberately, to compare against the real score() output rather than trust it blindly. */
+const rawWeighted = (s: SubScores) => 100 * s.E * (WEIGHTS.R * s.R + WEIGHTS.A * s.A + WEIGHTS.U * s.U + WEIGHTS.V * s.V);
 
 const ELIGIBILITIES: Eligibility[] = ['STANDARD', 'CONDITIONAL', 'REFERRED', 'DECLINED'];
 
@@ -92,7 +96,7 @@ describe('Engine 2/3 — edge cases', () => {
     expect(ci.eligibility).toBe('REFERRED'); // major_surgery refers CI regardless of the other two traits
   });
 
-  it('webankLoanBalanceCny: 0 (explicit literal, not omitted) floors WeLife Debt need at ¥200,000', async () => {
+  it('webankLoanBalanceCny: 0 (explicit literal, not omitted) floors WeLife Debt Shield need at ¥200,000', async () => {
     const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'DEBT', webankLoanBalanceCny: 0 };
     const { underwriting } = await runPipeline(profile);
     const debt = underwriting.find((u) => u.productId === 'WELIFE_DEBT')!;
@@ -100,19 +104,17 @@ describe('Engine 2/3 — edge cases', () => {
     expect(debt.sumAssuredCny).toBeGreaterThanOrEqual(CATALOG.WELIFE_DEBT.sumAssuredMinCny);
   });
 
-  it('annualIncomeCny: 0 (explicit) makes WeProtect CI need 0, but V stays finite and in [0,1]', async () => {
+  it('annualIncomeCny: 0 (explicit) makes WeProtect CI need 0, and V = 1 via the explicit guard', async () => {
     // `annualIncomeCny ?? 120_000` only falls back on null/undefined, not on 0 — so an
-    // explicit 0 survives as a real 0 need. sumAssuredCny is still clamped to the catalog
-    // minimum (never 0), so V = min(1, sa/0) = min(1, Infinity) = 1, not NaN. No guard
-    // exists in the code for this today; this test documents that it happens to be safe.
+    // explicit 0 survives as a real 0 need. Stage 3 added an explicit guard
+    // (sumAssuredNeedCny <= 0 -> V = 1) instead of relying on min(1, sa/0) = min(1,
+    // Infinity) happening to not be NaN.
     const profile: CustomerProfile = { ...BASE_PROFILE, concern: 'INC', annualIncomeCny: 0 };
     const { underwriting, scored } = await runPipeline(profile);
     const ciUnderwriting = underwriting.find((u) => u.productId === 'WEPROTECT_CI')!;
     expect(ciUnderwriting.sumAssuredNeedCny).toBe(0);
     const ciScored = scored.find((p) => p.productId === 'WEPROTECT_CI')!;
-    expect(Number.isFinite(ciScored.subScores.V)).toBe(true);
-    expect(ciScored.subScores.V).toBeGreaterThanOrEqual(0);
-    expect(ciScored.subScores.V).toBeLessThanOrEqual(1);
+    expect(ciScored.subScores.V).toBe(1);
   });
 });
 
@@ -217,7 +219,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(ci.conditions.some((c) => c.code === 'PRICE_ABOVE_BAND')).toBe(false);
   });
 
-  it('WeCare 1,000,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130)', async () => {
+  it('WeCare Health+ 1,000,000 tier (primary=MED) now reflects a 5-year age gap instead of being flattened by the floor (was defect #4: both ¥130)', async () => {
     // Defect #4 is fixed for the 1M tier only — see the next test for the 500k tier,
     // which is a known, accepted limitation (section 7 decision in RULEBOOK-CHANGES.md).
     const profile = { ...BASE_PROFILE, concern: 'MED' as const };
@@ -229,7 +231,7 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     expect(at30.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(false);
   });
 
-  it('WeCare 500,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
+  it('WeCare Health+ 500,000 tier (primary != MED) still floors flat and correctly discloses it via MIN_PREMIUM_APPLIED (known limitation, not fixed by the rate table)', async () => {
     // Accepted limitation: the 500k tier needs its own rate tier to differentiate by
     // age (out of scope — catalog.ts is shared/read-only, and a sum-assured-tiered rate
     // table is more scope than "replace the age factor"). What the rate table DOES
@@ -257,6 +259,243 @@ describe('Engine 2/3 — fixed in stage 2 (rate table)', () => {
     const concern = await translateConcern(profile);
     const accident = prescreen(profile, concern).find((u) => u.productId === 'WESAFE_ACCIDENT')!;
     expect(accident.conditions.some((c) => c.code === 'MIN_PREMIUM_APPLIED')).toBe(true);
+  });
+});
+
+describe('Engine 2/3 — stage 3 (scoring): U penalty by condition type', () => {
+  const needVector = { MED: 0.25, INC: 0.25, ACC: 0.25, DEBT: 0.25 };
+  const baseU: UnderwritingResult = {
+    productId: 'WECARE_HEALTH',
+    eligibility: 'STANDARD',
+    sumAssuredCny: 500_000,
+    sumAssuredNeedCny: 500_000,
+    monthlyPremiumCny: 130,
+    loadings: { occupation: 0, smoker: 0, health: 0 },
+    waitingPeriodDays: 30,
+    conditions: [...CATALOG.WECARE_HEALTH.statutoryConditions],
+  };
+  const withExtraCode = (code: string): UnderwritingResult => ({
+    ...baseU,
+    conditions: [...CATALOG.WECARE_HEALTH.statutoryConditions, { code, description: 'test' }],
+  });
+
+  it.each([
+    ['CAP_CLASS3', 0.95],
+    ['WAITING_120D', 0.95],
+  ])('limitation code %s costs U -0.05 (U = %f)', (code, expectedU) => {
+    expect(subScores(withExtraCode(code), needVector, BASE_PROFILE, 0, 1).U).toBe(expectedU);
+  });
+
+  it.each([
+    ['EXCL_NCD', 0.85],
+    ['EXCL_PRIOR_SURGERY', 0.85],
+  ])('exclusion code %s costs U -0.15 (U = %f)', (code, expectedU) => {
+    expect(subScores(withExtraCode(code), needVector, BASE_PROFILE, 0, 1).U).toBe(expectedU);
+  });
+
+  it.each([
+    ['LOAD_SMOKER', 1],
+    ['LOAD_NCD', 1],
+    ['MIN_PREMIUM_APPLIED', 1],
+    ['PRICE_ABOVE_BAND', 1],
+  ])('pricing code %s costs U nothing — already reflected in A (U = %f)', (code, expectedU) => {
+    expect(subScores(withExtraCode(code), needVector, BASE_PROFILE, 0, 1).U).toBe(expectedU);
+  });
+
+  it('an unknown condition code defaults to exclusion severity (-0.15), the conservative choice', () => {
+    expect(subScores(withExtraCode('SOME_FUTURE_CODE'), needVector, BASE_PROFILE, 0, 1).U).toBe(0.85);
+  });
+
+  it('U never goes negative, even stacking many exclusion-severity conditions', () => {
+    const stacked: UnderwritingResult = {
+      ...baseU,
+      conditions: [
+        ...CATALOG.WECARE_HEALTH.statutoryConditions,
+        { code: 'EXCL_NCD', description: 'x' },
+        { code: 'EXCL_PRIOR_SURGERY', description: 'x' },
+        { code: 'UNKNOWN_1', description: 'x' },
+        { code: 'UNKNOWN_2', description: 'x' },
+        { code: 'UNKNOWN_3', description: 'x' },
+        { code: 'UNKNOWN_4', description: 'x' },
+        { code: 'UNKNOWN_5', description: 'x' },
+      ],
+    };
+    expect(subScores(stacked, needVector, BASE_PROFILE, 0, 1).U).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('Engine 2/3 — stage 3 (scoring): R normalisation', () => {
+  it("R' is in [0,1] for every persona × product, and the best-matching product gets R' = 1", async () => {
+    for (const { profile } of PERSONAS) {
+      const { scored } = await runPipeline(profile);
+      for (const p of scored) {
+        expect(p.subScores.R).toBeGreaterThanOrEqual(0);
+        expect(p.subScores.R).toBeLessThanOrEqual(1);
+      }
+      const maxR = Math.max(...scored.map((p) => p.subScores.R));
+      expect(maxR).toBe(1);
+    }
+  });
+
+  it('Rmax === Rmin guard: forcing rMin === rMax collapses R to 1, independent of the raw dot product', () => {
+    for (const id of PRODUCT_IDS) {
+      const u: UnderwritingResult = {
+        productId: id,
+        eligibility: 'STANDARD',
+        sumAssuredCny: CATALOG[id].sumAssuredMinCny,
+        sumAssuredNeedCny: CATALOG[id].sumAssuredMinCny,
+        monthlyPremiumCny: CATALOG[id].priceMinCny,
+        loadings: { occupation: 0, smoker: 0, health: 0 },
+        waitingPeriodDays: CATALOG[id].statutoryWaitingDays,
+        conditions: [...CATALOG[id].statutoryConditions],
+      };
+      const needVector = { MED: 0.25, INC: 0.25, ACC: 0.25, DEBT: 0.25 };
+      expect(subScores(u, needVector, BASE_PROFILE, 0, 0).R).toBe(1);
+    }
+  });
+});
+
+describe('Engine 2/3 — stage 3 (scoring): prototype profile spread', () => {
+  it('P1 (prototype): top product fitScore >= 90, and spread (max - min) >= 40', async () => {
+    const { scored } = await runPipeline(MOCK_PROFILE);
+    const scores = scored.map((p) => p.fitScore);
+    const top = Math.max(...scores);
+    const bottom = Math.min(...scores);
+    expect(top).toBeGreaterThanOrEqual(90);
+    expect(top - bottom).toBeGreaterThanOrEqual(40);
+  });
+});
+
+describe('Engine 2/3 — stage 3 fix: over-budget scaling', () => {
+  it('P5: WeCare Health+ now scores below the recommended WeSafe Accident (was the contradiction: unaffordable 78% outranking recommended 59%)', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
+    const { scored } = await runPipeline(profile);
+    const wecare = scored.find((p) => p.productId === 'WECARE_HEALTH')!;
+    const accident = scored.find((p) => p.productId === 'WESAFE_ACCIDENT')!;
+    expect(accident.recommended).toBe(true);
+    expect(wecare.fitScore).toBeLessThan(accident.fitScore);
+  });
+
+  it('no non-recommended product ever outscores the recommended one, for every persona', async () => {
+    for (const { profile } of PERSONAS) {
+      const { scored } = await runPipeline(profile);
+      const top = scored.find((p) => p.recommended);
+      if (!top) continue; // no plan within budget for this persona — nothing to compare against
+      for (const p of scored) {
+        if (!p.recommended) expect(p.fitScore).toBeLessThanOrEqual(top.fitScore);
+      }
+    }
+  });
+
+  it('the over-budget factor never increases a score, and is a no-op within the budget limit', async () => {
+    for (const { profile } of PERSONAS) {
+      const concern = await translateConcern(profile);
+      const underwriting = prescreen(profile, concern);
+      const scored = score(profile, concern, underwriting);
+      const limit = profile.monthlyBudgetCny * (1 + OVER_BUDGET_TOLERANCE);
+      for (const p of scored) {
+        const unscaled = Math.round(rawWeighted(p.subScores));
+        if (p.monthlyPremiumCny > limit) {
+          expect(p.fitScore).toBeLessThanOrEqual(unscaled);
+        } else {
+          expect(p.fitScore).toBe(unscaled);
+        }
+      }
+    }
+  });
+});
+
+describe('Engine 2/3 — stage 4 (XAI)', () => {
+  const VOCAB = new Set<string>(REASON_CODES);
+
+  it('every Condition.code appears in reasonCodes, for every persona × product', async () => {
+    for (const { profile } of PERSONAS) {
+      const { underwriting, scored } = await runPipeline(profile);
+      for (const p of scored) {
+        const u = underwriting.find((x) => x.productId === p.productId)!;
+        for (const c of u.conditions) {
+          expect(p.reasonCodes).toContain(c.code);
+        }
+      }
+    }
+  });
+
+  it('every emitted reasonCode is in the exported REASON_CODES vocabulary, for every persona × product', async () => {
+    for (const { profile } of PERSONAS) {
+      const { scored } = await runPipeline(profile);
+      for (const p of scored) {
+        for (const code of p.reasonCodes) {
+          expect(VOCAB.has(code)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('U_CAP_ONLY: Class-3-only case (P2 WeSafe Accident) gets it', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P2')!;
+    const { scored } = await runPipeline(profile);
+    const accident = scored.find((p) => p.productId === 'WESAFE_ACCIDENT')!;
+    expect(accident.reasonCodes).toContain('U_CAP_ONLY');
+  });
+
+  it('U_CAP_ONLY: a case with an exclusion (P5 WeCare Health+, EXCL_PRIOR_SURGERY) does not get it', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
+    const { scored } = await runPipeline(profile);
+    const wecare = scored.find((p) => p.productId === 'WECARE_HEALTH')!;
+    expect(wecare.reasonCodes).not.toContain('U_CAP_ONLY');
+  });
+
+  it('V_CAPPED_BY_CLASS fires for P2 WeSafe Accident (occupation cap)', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P2')!;
+    const { scored } = await runPipeline(profile);
+    const accident = scored.find((p) => p.productId === 'WESAFE_ACCIDENT')!;
+    expect(accident.reasonCodes).toContain('V_CAPPED_BY_CLASS');
+    expect(accident.reasonCodes).not.toContain('V_CAPPED');
+  });
+
+  it('V_CAPPED (not BY_CLASS) fires for a catalog-max case (P4 WeProtect CI, income-driven cap)', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P4')!;
+    const { scored } = await runPipeline(profile);
+    const ci = scored.find((p) => p.productId === 'WEPROTECT_CI')!;
+    expect(ci.reasonCodes).toContain('V_CAPPED');
+    expect(ci.reasonCodes).not.toContain('V_CAPPED_BY_CLASS');
+  });
+
+  it('A_OVER_BUDGET_SCALED fires for P5 WeCare Health+ (over the budget limit)', async () => {
+    const { profile } = PERSONAS.find((p) => p.id === 'P5')!;
+    const { scored } = await runPipeline(profile);
+    const wecare = scored.find((p) => p.productId === 'WECARE_HEALTH')!;
+    expect(wecare.reasonCodes).toContain('A_OVER_BUDGET_SCALED');
+    expect(wecare.explanation).toMatch(/match score was reduced/i);
+  });
+
+  it('A_OVER_BUDGET_SCALED is absent for within-budget products (P1 WeCare Health+)', async () => {
+    const { scored } = await runPipeline(MOCK_PROFILE);
+    const wecare = scored.find((p) => p.productId === 'WECARE_HEALTH')!;
+    expect(wecare.reasonCodes).not.toContain('A_OVER_BUDGET_SCALED');
+    expect(wecare.reasonCodes).not.toContain('A_OVER_BUDGET');
+  });
+
+  it('reasonCodes are deterministic — same input produces the same array, every time', async () => {
+    for (const { profile } of PERSONAS) {
+      const { scored: first } = await runPipeline(profile);
+      const { scored: second } = await runPipeline(profile);
+      expect(first.map((p) => p.reasonCodes)).toEqual(second.map((p) => p.reasonCodes));
+    }
+  });
+
+  it('fitScores are unchanged from the last report (snapshot, all 5 personas, sorted order)', async () => {
+    const expected: Record<string, number[]> = {
+      P1: [100, 69, 59, 40],
+      P2: [95, 70, 40, 37],
+      P3: [100, 60, 44, 40],
+      P4: [99, 43, 42, 40],
+      P5: [59, 44, 40, 11],
+    };
+    for (const { id, profile } of PERSONAS) {
+      const { scored } = await runPipeline(profile);
+      expect(scored.map((p) => p.fitScore)).toEqual(expected[id]);
+    }
   });
 });
 
