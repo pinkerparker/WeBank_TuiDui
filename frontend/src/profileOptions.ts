@@ -54,8 +54,6 @@ export const JOBS: Job[] = [
   { id: 'other_manual', label: 'Other: manual or machinery work', group: 'Other', cls: 'technician' },
 ];
 
-const DEFAULT_JOB: Record<Occupation, string> = { desk: 'office_worker', field: 'sales_rep', technician: 'electrician' };
-export const defaultJobFor = (cls: Occupation) => DEFAULT_JOB[cls];
 export const jobById = (id: string) => JOBS.find((j) => j.id === id) ?? JOBS[0];
 
 export interface HealthCondition { id: string; label: string; health: Exclude<Health, 'normal'> }
@@ -80,10 +78,19 @@ export function healthFrom(conditionIds: string[]): Health {
     .reduce<Health>((worst, c) => (SEVERITY[c.health] > SEVERITY[worst] ? c.health : worst), 'normal');
 }
 
-/** Form answers that don't fit the API contract directly; kept in App so they survive navigation. */
-export interface ProfileDetails { jobId: string; conditions: string[] }
+/** Form answers that don't fit the API contract directly. '' / null = not answered yet. */
+export interface ProfileDetails { jobId: string; conditions: string[] | null }
+export const EMPTY_DETAILS: ProfileDetails = { jobId: '', conditions: null };
 
-/** Starting answers for the form (a typical first visitor); the user changes them straight away. */
-export const DEFAULT_PROFILE: CustomerProfile = {
-  gender: 'female', age: 30, occupation: 'desk', health: 'normal', smoker: false, concern: 'MED', monthlyBudgetUsd: 25,
-};
+/** What the user has answered so far. The form starts blank: nothing is preselected. */
+export type ProfileDraft = Partial<CustomerProfile>;
+export const EMPTY_DRAFT: ProfileDraft = {};
+
+const REQUIRED = ['gender', 'age', 'occupation', 'health', 'smoker', 'concern', 'monthlyBudgetUsd'] as const;
+
+/** How many required questions are still unanswered. */
+export const unanswered = (d: ProfileDraft) => REQUIRED.filter((k) => d[k] === undefined).length;
+
+/** The full profile once every required question is answered, else null (nothing is sent to the API). */
+export const completeProfile = (d: ProfileDraft): CustomerProfile | null =>
+  unanswered(d) === 0 ? (d as CustomerProfile) : null;

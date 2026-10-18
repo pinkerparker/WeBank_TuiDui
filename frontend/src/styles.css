@@ -58,6 +58,7 @@ button, input, textarea { font: inherit; }
 .results-body { display: grid; gap: 16px; transition: opacity .2s; }
 .results-body.stale { opacity: .55; }
 .updating { font-size: 13px; color: var(--brand); font-weight: 600; }
+.empty-results { text-align: center; }
 .skeleton { min-height: 280px; background: linear-gradient(90deg, var(--panel), var(--brand-tint), var(--panel)); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
@@ -331,11 +332,6 @@ body:has(dialog[open]) { overflow: hidden; }
 .wb-more { display: inline-flex; align-items: center; gap: 12px; padding: 6px 0; border: 0; background: none; color: var(--brand); font-size: 16px; cursor: pointer; text-decoration: none; }
 .wb-more:hover .more-arrow { transform: translateX(4px); }
 .more-arrow { transition: transform .2s; }
-.preview { position: relative; background: var(--surface); color: var(--ink); border-radius: 4px; padding: 22px; display: grid; gap: 8px; box-shadow: 0 12px 40px rgba(15, 30, 51, .10); max-width: 440px; width: 100%; justify-self: center; }
-.preview-tag { position: absolute; top: -11px; right: 18px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 2px; }
-.preview-name { font-size: 20px; }
-.preview-rows { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
-.match.small { grid-template-columns: 130px 1fr; font-size: 13px; color: var(--muted); }
 
 .wb-section { padding: 56px 0 8px; }
 .home main { padding-bottom: 72px; }
@@ -405,7 +401,7 @@ body:has(dialog[open]) { overflow: hidden; }
   .wb-grid.four, .wb-grid.three { grid-template-columns: 1fr 1fr; }
 }
 @media (min-width: 900px) {
-  .wb-hero-inner { grid-template-columns: 1.15fr 1fr; gap: 56px; padding-top: 80px; padding-bottom: 88px; }
+  .wb-hero-inner { gap: 56px; padding-top: 80px; padding-bottom: 88px; }
   .wb-hero h1 { font-size: 46px; }
   .wb-hero p { font-size: 18px; }
   .wb-section { padding-top: 88px; }
@@ -418,10 +414,9 @@ body:has(dialog[open]) { overflow: hidden; }
   .plan-card { padding: 36px 28px; }
   .to-top { right: 40px; bottom: 40px; }
 }
-@media (max-width: 359px) { .wb-hero h1 { font-size: 26px; } .match.small { grid-template-columns: 100px 1fr; } }
+@media (max-width: 359px) { .wb-hero h1 { font-size: 26px; } }
 
-/* Optional details + demo sample picker */
-.sample select { min-height: 40px; font-size: 14px; color: var(--muted); background: var(--panel); border-style: dashed; }
+/* Optional details */
 .more { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .more-toggle {
   width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px;

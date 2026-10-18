@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { HEALTH_CONDITIONS, JOB_GROUPS, JOBS, defaultJobFor, healthFrom, jobById } from './profileOptions';
+import { HEALTH_CONDITIONS, JOB_GROUPS, JOBS, completeProfile, healthFrom, jobById, unanswered } from './profileOptions';
+
+describe('draft profile', () => {
+  const full = { gender: 'female', age: 30, occupation: 'desk', health: 'normal', smoker: false, concern: 'MED', monthlyBudgetUsd: 25 } as const;
+
+  it('starts with every required question unanswered', () => {
+    expect(unanswered({})).toBe(7);
+    expect(completeProfile({})).toBeNull();
+  });
+
+  it('is complete only when every required answer is in; false and 0-like answers count', () => {
+    expect(completeProfile(full)).toEqual(full);
+    expect(completeProfile({ ...full, smoker: undefined })).toBeNull();
+    expect(unanswered({ ...full, age: undefined, monthlyBudgetUsd: undefined })).toBe(2);
+  });
+
+  it('keeps optional answers', () => {
+    expect(completeProfile({ ...full, dependants: 0, concernText: 'hospital' })).toMatchObject({ dependants: 0, concernText: 'hospital' });
+  });
+});
 
 describe('occupations', () => {
   it('has unique ids, a known group and a valid API class for every job', () => {
@@ -13,10 +32,6 @@ describe('occupations', () => {
   it('has at least one job in every group and every class', () => {
     for (const g of JOB_GROUPS) expect(JOBS.some((j) => j.group === g)).toBe(true);
     for (const c of ['desk', 'field', 'technician'] as const) expect(JOBS.some((j) => j.cls === c)).toBe(true);
-  });
-
-  it('picks a default job that maps back to the same class', () => {
-    for (const c of ['desk', 'field', 'technician'] as const) expect(jobById(defaultJobFor(c)).cls).toBe(c);
   });
 
   it('falls back to the first job for an unknown id', () => {

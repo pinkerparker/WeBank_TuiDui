@@ -1,14 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ConcernCode, ConcernResult, CustomerProfile } from '@insightshield/shared';
-import { PERSONAS } from '@insightshield/shared';
 import { T } from '../i18n';
 import { readConcern } from '../concern';
 import { formatUsd } from '../money';
-import { HEALTH_CONDITIONS, JOB_GROUPS, JOBS, healthFrom, jobById, type ProfileDetails } from '../profileOptions';
+import { HEALTH_CONDITIONS, JOB_GROUPS, JOBS, healthFrom, jobById, type ProfileDetails, type ProfileDraft } from '../profileOptions';
 
 type Props = {
-  value: CustomerProfile; onChange: (p: CustomerProfile) => void;
+  value: ProfileDraft; onChange: (p: ProfileDraft) => void;
   details: ProfileDetails; onDetails: (d: ProfileDetails) => void;
+  /** Every required question is answered, so the API (and Engine 1's reading of the text) is running. */
+  complete: boolean;
   /** Engine 1's reading of the free text, or null while it isn't for the current text yet. */
   understood: ConcernResult | null;
 };
@@ -32,7 +33,7 @@ function Field({ label, value, children }: { label: string; value?: ReactNode; c
 }
 
 function Options<V extends string | boolean | number>({ options, value, onPick, cols, label, className = '' }: {
-  options: [V, string][]; value: V; onPick: (v: V) => void; cols: number; label: string; className?: string;
+  options: [V, string][]; value: V | undefined; onPick: (v: V) => void; cols: number; label: string; className?: string;
 }) {
   return (
     <div className={`options ${className}`} role="group" aria-label={label} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
@@ -46,10 +47,10 @@ function Options<V extends string | boolean | number>({ options, value, onPick, 
 }
 
 /** Typed whole-number input. Only commits valid values, so a half-typed number never hits the API.
- *  With `optional`, an empty box is valid and commits `undefined`. */
-function NumberInput({ value, min, max, onChange, label, prefix, suffix, optional = false, placeholder }: {
+ *  An empty box shows no error and commits `undefined` (unanswered). */
+function NumberInput({ value, min, max, onChange, label, prefix, suffix, placeholder }: {
   value: number | undefined; min: number; max: number; onChange: (n: number | undefined) => void;
-  label: string; prefix?: string; suffix?: string; optional?: boolean; placeholder?: string;
+  label: string; prefix?: string; suffix?: string; placeholder?: string;
 }) {
   const [text, setText] = useState(value === undefined ? '' : String(value));
   useEffect(() => {
@@ -57,7 +58,7 @@ function NumberInput({ value, min, max, onChange, label, prefix, suffix, optiona
   }, [value]);
 
   const n = Number(text);
-  const valid = text === '' ? optional : n >= min && n <= max;
+  const valid = text === '' || (n >= min && n <= max);
   const fmt = (x: number) => (prefix ? `${prefix}${x.toLocaleString('en-US')}` : x);
   return (
     <>
@@ -68,7 +69,7 @@ function NumberInput({ value, min, max, onChange, label, prefix, suffix, optiona
             const raw = e.target.value.replace(/\D/g, '').slice(0, String(max).length);
             setText(raw);
             const v = Number(raw);
-            if (raw === '' ? optional : v >= min && v <= max) onChange(raw === '' ? undefined : v);
+            if (raw === '' || (v >= min && v <= max)) onChange(raw === '' ? undefined : v);
           }} />
         {suffix && <span className="input-affix">{suffix}</span>}
       </div>
@@ -78,8 +79,8 @@ function NumberInput({ value, min, max, onChange, label, prefix, suffix, optiona
 }
 
 /** Budget is a ceiling: pick "Up to $X", or Custom to type an exact amount. */
-function BudgetPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  const [custom, setCustom] = useState(!BUDGET_PRESETS.includes(value));
+function BudgetPicker({ value, onChange }: { value: number | undefined; onChange: (n: number | undefined) => void }) {
+  const [custom, setCustom] = useState(value !== undefined && !BUDGET_PRESETS.includes(value));
   const options: ['custom' | number, string][] = [...BUDGET_PRESETS.map((n): [number, string] => [n, T.upTo(formatUsd(n))]), ['custom', T.customAmount]];
   return (
     <>
@@ -88,18 +89,19 @@ function BudgetPicker({ value, onChange }: { value: number; onChange: (n: number
           setCustom(v === 'custom');
           if (v !== 'custom') onChange(v);
         }} />
-      {custom && <NumberInput label={T.customAmount} min={BUDGET_MIN} max={BUDGET_MAX} prefix="$" suffix={T.perMonth} value={value} onChange={(n) => n !== undefined && onChange(n)} />}
+      {custom && <NumberInput label={T.customAmount} min={BUDGET_MIN} max={BUDGET_MAX} prefix="$" suffix={T.perMonth} value={value} onChange={onChange} />}
     </>
   );
 }
 
-/** Grouped job list; each job maps to the API's occupation class. */
+/** Grouped job list; each job maps to the API's occupation class. '' = not chosen yet. */
 function OccupationSelect({ jobId, onPick }: { jobId: string; onPick: (id: string) => void }) {
-  const job = jobById(jobId);
+  const job = jobId ? jobById(jobId) : null;
   return (
     <>
       <div className="select">
         <select aria-label={T.occupation} value={jobId} onChange={(e) => onPick(e.target.value)}>
+          <option value="" disabled>{T.chooseJob}</option>
           {JOB_GROUPS.map((g) => (
             <optgroup key={g} label={g}>
               {JOBS.filter((j) => j.group === g).map((j) => <option key={j.id} value={j.id}>{j.label}</option>)}
@@ -107,20 +109,21 @@ function OccupationSelect({ jobId, onPick }: { jobId: string; onPick: (id: strin
           ))}
         </select>
       </div>
-      <p className="hint">{T.riskClass[job.cls]}</p>
+      {job && <p className="hint">{T.riskClass[job.cls]}</p>}
     </>
   );
 }
 
-/** Multi-select conditions. "None of these" is exclusive. */
-function HealthPicker({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
-  const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+/** Multi-select conditions. "None of these" is exclusive. null = not answered yet. */
+function HealthPicker({ selected, onChange }: { selected: string[] | null; onChange: (ids: string[]) => void }) {
+  const ids = selected ?? [];
+  const toggle = (id: string) => onChange(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
   return (
     <>
       <div className="options" role="group" aria-label={T.health} style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-        <button type="button" className="option option-wide" aria-pressed={selected.length === 0} onClick={() => onChange([])}>{T.noConditions}</button>
+        <button type="button" className="option option-wide" aria-pressed={selected?.length === 0} onClick={() => onChange([])}>{T.noConditions}</button>
         {HEALTH_CONDITIONS.map((c) => (
-          <button key={c.id} type="button" className="option" aria-pressed={selected.includes(c.id)} onClick={() => toggle(c.id)}>{c.label}</button>
+          <button key={c.id} type="button" className="option" aria-pressed={ids.includes(c.id)} onClick={() => toggle(c.id)}>{c.label}</button>
         ))}
       </div>
       <p className="hint">{T.healthHint}</p>
@@ -128,23 +131,8 @@ function HealthPicker({ selected, onChange }: { selected: string[]; onChange: (i
   );
 }
 
-/** Demo helper: fill the form with one of the shared sandbox personas. */
-export function SamplePicker({ onPick }: { onPick: (p: CustomerProfile) => void }) {
-  return (
-    <div className="select sample">
-      <select aria-label={T.sampleLabel} value="" onChange={(e) => {
-        const persona = PERSONAS.find((x) => x.id === e.target.value);
-        if (persona) onPick(persona.profile);
-      }}>
-        <option value="" disabled>{T.sampleLabel}</option>
-        {PERSONAS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-      </select>
-    </div>
-  );
-}
-
 /** Optional facts the engines already use to size cover. Collapsed by default to keep the form short. */
-function MoreDetails({ p, set }: { p: CustomerProfile; set: (patch: Partial<CustomerProfile>) => void }) {
+function MoreDetails({ p, set }: { p: ProfileDraft; set: (patch: Partial<CustomerProfile>) => void }) {
   const filled = [p.annualIncomeUsd, p.dependants, p.webankLoanBalanceUsd].filter((v) => v !== undefined).length;
   const [open, setOpen] = useState(filled > 0);
   return (
@@ -159,7 +147,7 @@ function MoreDetails({ p, set }: { p: CustomerProfile; set: (patch: Partial<Cust
       {open && (
         <div className="form more-body">
           <Field label={T.income}>
-            <NumberInput optional label={T.income} min={0} max={99_999_999} prefix="$" suffix={T.perYear} placeholder="0"
+            <NumberInput label={T.income} min={0} max={99_999_999} prefix="$" suffix={T.perYear} placeholder="0"
               value={p.annualIncomeUsd} onChange={(annualIncomeUsd) => set({ annualIncomeUsd })} />
             <p className="hint">{T.incomeHint}</p>
           </Field>
@@ -170,7 +158,7 @@ function MoreDetails({ p, set }: { p: CustomerProfile; set: (patch: Partial<Cust
             <p className="hint">{T.dependantsHint}</p>
           </Field>
           <Field label={T.loan}>
-            <NumberInput optional label={T.loan} min={0} max={99_999_999} prefix="$" placeholder="0"
+            <NumberInput label={T.loan} min={0} max={99_999_999} prefix="$" placeholder="0"
               value={p.webankLoanBalanceUsd} onChange={(webankLoanBalanceUsd) => set({ webankLoanBalanceUsd })} />
             <p className="hint">{T.loanHint}</p>
           </Field>
@@ -205,7 +193,7 @@ function ConcernHint({ text, chosen, understood, onUse }: {
   );
 }
 
-export function ProfileForm({ value: p, onChange, details, onDetails, understood }: Props) {
+export function ProfileForm({ value: p, onChange, details, onDetails, complete, understood }: Props) {
   const set = (patch: Partial<CustomerProfile>) => onChange({ ...p, ...patch });
   return (
     <div className="form">
@@ -214,7 +202,7 @@ export function ProfileForm({ value: p, onChange, details, onDetails, understood
       </Field>
 
       <Field label={T.age}>
-        <NumberInput label={T.age} min={18} max={65} suffix={T.years} value={p.age} onChange={(age) => age !== undefined && set({ age })} />
+        <NumberInput label={T.age} min={18} max={65} suffix={T.years} value={p.age} onChange={(age) => set({ age })} />
       </Field>
 
       <Field label={T.occupation}>
@@ -242,7 +230,9 @@ export function ProfileForm({ value: p, onChange, details, onDetails, understood
       <Field label={T.concernText}>
         <textarea className="text" rows={2} aria-label={T.concernText} placeholder={T.concernTextHint} maxLength={500}
           value={p.concernText ?? ''} onChange={(e) => set({ concernText: e.target.value || undefined })} />
-        <ConcernHint text={p.concernText} chosen={p.concern} understood={understood} onUse={(concern) => set({ concern })} />
+        {complete && p.concern && (
+          <ConcernHint text={p.concernText} chosen={p.concern} understood={understood} onUse={(concern) => set({ concern })} />
+        )}
       </Field>
 
       <Field label={T.budget}>

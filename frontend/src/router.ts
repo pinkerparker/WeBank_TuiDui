@@ -2,6 +2,7 @@
  * Tiny hash router (owner: A) so the browser/phone Back button moves between screens
  * instead of leaving the site. Hash URLs need no server config when deployed.
  *   #/                    home
+ *   #/plan/<id>           home with a plan's overview sheet open
  *   #/match               questions + results
  *   #/match/plan/<id>     plan details sheet open
  *   #/apply               consent + result
@@ -12,16 +13,20 @@ import type { ProductId } from '@insightshield/shared';
 import { PRODUCT_IDS } from '@insightshield/shared';
 
 export type Route =
-  | { name: 'home' }
+  | { name: 'home'; plan?: ProductId }
   | { name: 'match'; plan?: ProductId }
   | { name: 'apply' }
   | { name: 'audit' };
 
+const isPlan = (id: string | undefined): id is ProductId => PRODUCT_IDS.includes(id as ProductId);
+
 export function parseRoute(hash: string): Route {
   const [page, sub, id] = hash.replace(/^#\/?/, '').split('/');
   switch (page) {
+    case 'plan':
+      return isPlan(sub) ? { name: 'home', plan: sub } : { name: 'home' };
     case 'match':
-      return sub === 'plan' && PRODUCT_IDS.includes(id as ProductId) ? { name: 'match', plan: id as ProductId } : { name: 'match' };
+      return sub === 'plan' && isPlan(id) ? { name: 'match', plan: id } : { name: 'match' };
     case 'apply': return { name: 'apply' };
     case 'audit': return { name: 'audit' };
     default: return { name: 'home' };
@@ -29,7 +34,7 @@ export function parseRoute(hash: string): Route {
 }
 
 export function formatRoute(r: Route): string {
-  if (r.name === 'home') return '#/';
+  if (r.name === 'home') return r.plan ? `#/plan/${r.plan}` : '#/';
   if (r.name === 'match' && r.plan) return `#/match/plan/${r.plan}`;
   return `#/${r.name}`;
 }
