@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { ConcernCode } from '@insightshield/shared';
+import type { ConcernCode, ProductId } from '@insightshield/shared';
 import { CATALOG, PRODUCT_IDS } from '@insightshield/shared';
 import { H, T } from '../i18n';
 import { formatUsd } from '../money';
 
-type Props = { onStart: (concern?: ConcernCode) => void };
+type Props = { onStart: (concern?: ConcernCode) => void; onPlan: (id: ProductId) => void };
 
 /** Line icons (Feather, MIT) — inline so no icon library is needed. */
 const ICONS = {
@@ -37,28 +37,6 @@ function MoreLink({ children, onClick, stretched = false }: { children: string; 
   return <button type="button" className={stretched ? 'wb-more stretched' : 'wb-more'} onClick={onClick}>{children}{arrow}</button>;
 }
 
-/** Decorative preview of what a result looks like. */
-function PreviewCard() {
-  const spec = CATALOG.WECARE_HEALTH;
-  return (
-    <div className="preview" aria-hidden>
-      <span className="preview-tag">{H.previewLabel}</span>
-      <span className="eyebrow">{T.recommended}</span>
-      <b className="preview-name">{spec.name}</b>
-      <span className="plan-type">{spec.type}</span>
-      <div className="match"><div className="match-track"><div className="match-fill top" style={{ width: '94%' }} /></div><b className="num">94%</b></div>
-      <div className="preview-rows">
-        {(['WEPROTECT_CI', 'WESAFE_ACCIDENT', 'WELIFE_DEBT'] as const).map((id, i) => (
-          <div key={id} className="match small">
-            <span>{CATALOG[id].name}</span>
-            <div className="match-track"><div className="match-fill" style={{ width: `${[72, 58, 35][i]}%` }} /></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function BackToTop() {
   const [show, setShow] = useState(false);
   useEffect(() => {
@@ -74,7 +52,7 @@ function BackToTop() {
   );
 }
 
-export function Home({ onStart }: Props) {
+export function Home({ onStart, onPlan }: Props) {
   return (
     <div className="home">
       <main>
@@ -90,7 +68,6 @@ export function Home({ onStart }: Props) {
               </div>
               <span className="hint">{H.startNote}</span>
             </div>
-            <PreviewCard />
           </div>
         </section>
 
@@ -130,7 +107,7 @@ export function Home({ onStart }: Props) {
                       <div><dt>{T.sumAssured}</dt><dd className="num">{H.coverUpTo(formatUsd(spec.sumAssuredMaxUsd))}</dd></div>
                       <div><dt>{T.premium}</dt><dd className="num">{H.from(formatUsd(spec.priceMinUsd))}</dd></div>
                     </dl>
-                    <MoreLink stretched onClick={() => onStart(spec.concern)}>{H.checkMatch}</MoreLink>
+                    <MoreLink stretched onClick={() => onPlan(id)}>{T.viewDetails}</MoreLink>
                   </li>
                 );
               })}

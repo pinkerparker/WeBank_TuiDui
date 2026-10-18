@@ -12,6 +12,7 @@ export const T = {
   gender: 'Gender', female: 'Female', male: 'Male',
   age: 'Age', years: 'years',
   occupation: 'Occupation',
+  chooseJob: 'Select your job…',
   riskClass: {
     desk: 'Occupation risk class 1 · low',
     field: 'Occupation risk class 2 · medium',
@@ -49,7 +50,6 @@ export const T = {
   dependantsHint: 'Children, a partner or parents you support.',
   loan: 'WeBank loan balance',
   loanHint: 'Used to size debt-protection cover so your loan can be paid off.',
-  sampleLabel: 'Demo: load a sample customer…',
   pageTitle: {
     home: 'InsightShield · AI insurance matching for WeBank Wealth+',
     match: 'Your matches · InsightShield',
@@ -59,6 +59,7 @@ export const T = {
 
   yourMatches: 'Your matches',
   updating: 'Updating…',
+  answerToSee: (left: number) => `Answer ${left} more question${left === 1 ? '' : 's'} to see your matches.`,
   recommended: 'Best match for you',
   matchScore: 'Match', sumAssured: 'Coverage', premium: 'Per month',
   perMonth: '/mo',
@@ -99,7 +100,6 @@ export const H = {
   start: 'Get started',
   howLink: 'How it works',
   startNote: 'Free · No sign-up · About 1 minute',
-  previewLabel: 'Sample result',
   howTitle: 'How it works',
   howLead: 'From your first answer to an issued policy, every step happens in the WeBank app.',
   how: [
@@ -112,6 +112,7 @@ export const H = {
   from: (price: string) => `From ${price}/mo`,
   coverUpTo: (amount: string) => `Up to ${amount}`,
   checkMatch: 'Check my match',
+  planNote: 'Your exact price and cover depend on your answers.',
   trustTitle: 'Better insurance for all',
   trustLead: 'Clear answers, your consent at every step, and a record you can check yourself.',
   trust: [
