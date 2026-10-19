@@ -1,0 +1,211 @@
+=== SERVER TESTS (npm test -w server) ===
+
+> @insightshield/server@0.1.0 test
+> vitest run
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/nateb/Desktop/WeBank/WeBank_TuiDui/server[39m
+
+ [32m✓[39m tests/concern.test.ts [2m([22m[2m20 tests[22m[2m)[22m[90m 35[2mms[22m[39m
+ [32m✓[39m tests/engines.test.ts [2m([22m[2m48 tests[22m[2m)[22m[90m 232[2mms[22m[39m
+ [31m❯[39m tests/persistence.test.ts [2m([22m[2m22 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[33m 1913[2mms[22m[39m
+   [33m[2m✓[22m[39m Persistence: restart recovery[2m > [22m1. session survives restart [33m1157[2mms[22m[39m
+[31m   [31m×[31m Persistence: failure paths[2m > [22m9. audit write failure (parent dir cannot be created) is transient — no throw, warn, no push[90m 27[2mms[22m[31m[39m
+[31m     → expected "warn" to be called at least once[39m
+[31m   [31m×[31m Persistence: failure paths[2m > [22m10. JsonMap write failure throws (authoritative state must not silently fail)[90m 18[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+[31m   [31m×[31m Regression: JsonMap resilience and consistency[2m > [22mR1. failed set() does not poison the queue — a subsequent set() succeeds[90m 20[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+[31m   [31m×[31m Regression: JsonMap resilience and consistency[2m > [22mR2. failed delete() does not poison the queue — a subsequent delete() succeeds[90m 25[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+[31m   [31m×[31m Regression: JsonMap resilience and consistency[2m > [22mR3. failed writes leave both in-memory and on-disk state unchanged[90m 24[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+[31m   [31m×[31m Regression: JsonMap resilience and consistency[2m > [22mR5. concurrent writes: a mid-stream failure does not roll back earlier successes[90m 24[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+[31m   [31m×[31m Regression: JsonMap resilience and consistency[2m > [22mR6. failed persistence does not leave orphaned .tmp-* files[90m 13[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+[31m   [31m×[31m Regression: JsonMap resilience and consistency[2m > [22mR7. a set() that fails does not expose the uncommitted value via get/has[90m 14[2mms[22m[31m[39m
+[31m     → promise resolved "undefined" instead of rejecting[39m
+ [32m✓[39m tests/contract.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 482[2mms[22m[39m
+ [32m✓[39m tests/e2e.test.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 2833[2mms[22m[39m
+   [33m[2m✓[22m[39m E2E: catalog and health[2m > [22mGET /api/v1/catalog returns the full shared catalog with all four products [33m753[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 8 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mPersistence: failure paths[2m > [22m9. audit write failure (parent dir cannot be created) is transient — no throw, warn, no push
+[31m[1mAssertionError[22m: expected "warn" to be called at least once[39m
+[36m [2m❯[22m tests/persistence.test.ts:[2m253:18[22m[39m
+    [90m251| [39m    })[33m.[39mnot[33m.[39m[34mtoThrow[39m()[33m;[39m
+    [90m252| [39m    [34mexpect[39m(entry)[33m.[39m[34mtoBeDefined[39m()[33m;[39m
+    [90m253| [39m    [34mexpect[39m(warn)[33m.[39m[34mtoHaveBeenCalled[39m()[33m;[39m
+    [90m   | [39m                 [31m^[39m
+    [90m254| [39m    [90m// In-memory mirror was NOT advanced.[39m
+    [90m255| [39m    [34mexpect[39m(auditLog[33m.[39mlength)[33m.[39m[34mtoBe[39m(before)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mPersistence: failure paths[2m > [22m10. JsonMap write failure throws (authoritative state must not silently fail)
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m266:5[22m[39m
+    [90m264| [39m    [35mawait[39m [34mexpect[39m(
+    [90m265| [39m      sessions[33m.[39m[35mset[39m([32m'k'[39m[33m,[39m { foo[33m:[39m [34m1[39m } [35mas[39m unknown [35mas[39m never)[33m,[39m
+    [90m266| [39m    )[33m.[39mrejects[33m.[39m[34mtoThrow[39m([36m/sessions\.json/[39m)[33m;[39m
+    [90m   | [39m    [31m^[39m
+    [90m267| [39m  })[33m;[39m
+    [90m268| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mRegression: JsonMap resilience and consistency[2m > [22mR1. failed set() does not poison the queue — a subsequent set() succeeds
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m321:62[22m[39m
+    [90m319| [39m    vi[33m.[39m[34mresetModules[39m()[33m;[39m
+    [90m320| [39m    [35mconst[39m broken [33m=[39m [35mawait[39m [35mimport[39m([32m'../src/store/persistence'[39m)[33m;[39m
+    [90m321| [39m    [35mawait[39m [34mexpect[39m(broken[33m.[39msessions[33m.[39m[35mset[39m([32m'k1'[39m[33m,[39m { x[33m:[39m [34m1[39m } [35mas[39m never))[33m.[39mrejects…
+    [90m   | [39m                                                             [31m^[39m
+    [90m322| [39m    [90m// In-memory state must be unchanged: nothing committed.[39m
+    [90m323| [39m    [34mexpect[39m(broken[33m.[39msessions[33m.[39m[34mhas[39m([32m'k1'[39m))[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mRegression: JsonMap resilience and consistency[2m > [22mR2. failed delete() does not poison the queue — a subsequent delete() succeeds
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m348:45[22m[39m
+    [90m346| [39m    vi[33m.[39m[34mresetModules[39m()[33m;[39m
+    [90m347| [39m    [35mconst[39m broken [33m=[39m [35mawait[39m [35mimport[39m([32m'../src/store/persistence'[39m)[33m;[39m
+    [90m348| [39m    [35mawait[39m [34mexpect[39m(broken[33m.[39msessions[33m.[39m[35mdelete[39m([32m'a'[39m))[33m.[39mrejects[33m.[39m[34mtoThrow[39m([36m/session[39m…
+    [90m   | [39m                                            [31m^[39m
+    [90m349| [39m    [90m// Second operation on the same broken instance: still attempts[39m
+    [90m350| [39m    [90m// the write, still fails with the same disk error (not a[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mRegression: JsonMap resilience and consistency[2m > [22mR3. failed writes leave both in-memory and on-disk state unchanged
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m371:79[22m[39m
+    [90m369| [39m    vi[33m.[39m[34mresetModules[39m()[33m;[39m
+    [90m370| [39m    [35mconst[39m broken [33m=[39m [35mawait[39m [35mimport[39m([32m'../src/store/persistence'[39m)[33m;[39m
+    [90m371| [39m    [35mawait[39m [34mexpect[39m(broken[33m.[39msessions[33m.[39m[35mset[39m([32m'committed'[39m[33m,[39m { value[33m:[39m [32m'after'[39m } [35ma[39m…
+    [90m   | [39m                                                                              [31m^[39m
+    [90m372| [39m    [90m// The broken instance never saw the prior write; its in-memory[39m
+    [90m373| [39m    [90m// state is empty. A fresh instance against the original path[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mRegression: JsonMap resilience and consistency[2m > [22mR5. concurrent writes: a mid-stream failure does not roll back earlier successes
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m411:64[22m[39m
+    [90m409| [39m    vi[33m.[39m[34mresetModules[39m()[33m;[39m
+    [90m410| [39m    [35mconst[39m broken [33m=[39m [35mawait[39m [35mimport[39m([32m'../src/store/persistence'[39m)[33m;[39m
+    [90m411| [39m    [35mawait[39m [34mexpect[39m(broken[33m.[39msessions[33m.[39m[35mset[39m([32m'new'[39m[33m,[39m { v[33m:[39m [34m99[39m } [35mas[39m never))[33m.[39mrejec…
+    [90m   | [39m                                                               [31m^[39m
+    [90m412| [39m    [90m// The 'seed' value was never visible to this broken instance.[39m
+    [90m413| [39m    [90m// Restore the path and verify the original 'seed' is still there.[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mRegression: JsonMap resilience and consistency[2m > [22mR6. failed persistence does not leave orphaned .tmp-* files
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m424:61[22m[39m
+    [90m422| [39m    vi[33m.[39m[34mresetModules[39m()[33m;[39m
+    [90m423| [39m    [35mconst[39m broken [33m=[39m [35mawait[39m [35mimport[39m([32m'../src/store/persistence'[39m)[33m;[39m
+    [90m424| [39m    [35mawait[39m [34mexpect[39m(broken[33m.[39msessions[33m.[39m[35mset[39m([32m'k'[39m[33m,[39m { v[33m:[39m [34m1[39m } [35mas[39m never))[33m.[39mrejects[33m.[39m…
+    [90m   | [39m                                                            [31m^[39m
+    [90m425| [39m    [90m// No .tmp-* files should remain. The temp dir is the SETUP dir,[39m
+    [90m426| [39m    [90m// but the broken path is under /dev/null, so there should be[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯[22m[39m
+
+[31m[1m[7m FAIL [27m[22m[39m tests/persistence.test.ts[2m > [22mRegression: JsonMap resilience and consistency[2m > [22mR7. a set() that fails does not expose the uncommitted value via get/has
+[31m[1mAssertionError[22m: promise resolved "undefined" instead of rejecting[39m
+
+[32m- Expected:[39m 
+[Error: rejected promise]
+
+[31m+ Received:[39m 
+undefined
+
+[36m [2m❯[22m tests/persistence.test.ts:[2m443:57[22m[39m
+    [90m441| [39m    [35mconst[39m broken [33m=[39m [35mnew[39m [33mJsonMap[39m([32m'/dev/null/cannot-create/clones.json'[39m)[33m;[39m
+    [90m442| [39m    [90m// Attempt a write — it will fail.[39m
+    [90m443| [39m    [35mawait[39m [34mexpect[39m(broken[33m.[39m[35mset[39m([32m'leaked'[39m[33m,[39m { v[33m:[39m [34m1[39m } [35mas[39m never))[33m.[39mrejects[33m.[39m[34mtoTh[39m…
+    [90m   | [39m                                                        [31m^[39m
+    [90m444| [39m    [90m// The uncommitted value must NOT be visible.[39m
+    [90m445| [39m    [34mexpect[39m(broken[33m.[39m[35mget[39m([32m'leaked'[39m))[33m.[39m[34mtoBeUndefined[39m()[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[31m8 failed[39m[22m[2m | [22m[1m[32m128 passed[39m[22m[90m (136)[39m
+[2m   Start at [22m 14:06:55
+[2m   Duration [22m 6.42s[2m (transform 1.24s, setup 0ms, collect 8.31s, tests 5.49s, environment 2ms, prepare 3.27s)[22m
+
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\Users\nateb\Desktop\WeBank\WeBank_TuiDui\server
+npm error workspace @insightshield/server@0.1.0
+npm error location C:\Users\nateb\Desktop\WeBank\WeBank_TuiDui\server
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c vitest run
+
+=== FRONTEND TESTS (npm test -w frontend) ===
+
+> @insightshield/frontend@0.1.0 test
+> vitest run
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/nateb/Desktop/WeBank/WeBank_TuiDui/frontend[39m
+
+ [32m✓[39m src/money.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m src/concern.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m src/profileOptions.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 18[2mms[22m[39m
+ [32m✓[39m src/router.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m src/api/client.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 59[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 14:07:03
+[2m   Duration [22m 854ms[2m (transform 471ms, setup 0ms, collect 838ms, tests 105ms, environment 2ms, prepare 1.06s)[22m
+

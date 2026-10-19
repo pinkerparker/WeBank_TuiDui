@@ -1,0 +1,18 @@
+{
+  "request": {
+    "sessionId": "4e2b4937-a910-4cd5-96d7-c6f9d820a624",
+    "productId": "WEPROTECT_CI",
+    "consentId": "consent-evidence-P4",
+    "idempotencyKey": "idem-evidence-P4-1792393567031"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "ISSUED",
+      "policyNumber": "WB-SBX-0CB54AC4",
+      "productId": "WEPROTECT_CI",
+      "monthlyPremiumUsd": 35,
+      "debitReference": "DD-SBX-0CB54AC4"
+    }
+  }
+}

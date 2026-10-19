@@ -1,0 +1,198 @@
+{
+  "request": {
+    "gender": "male",
+    "age": 35,
+    "occupation": "desk",
+    "health": "normal",
+    "smoker": false,
+    "concern": "DEBT",
+    "monthlyBudgetUsd": 28,
+    "dependants": 2,
+    "webankLoanBalanceUsd": 63000,
+    "annualIncomeUsd": 25000
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "sessionId": "ad88e676-f886-4e02-9915-4951ff78345b",
+      "rulebookVersion": "rulebook-2026.10-v0.2",
+      "createdAt": "2026-10-19T07:06:06.991Z",
+      "profile": {
+        "gender": "male",
+        "age": 35,
+        "occupation": "desk",
+        "health": "normal",
+        "smoker": false,
+        "concern": "DEBT",
+        "monthlyBudgetUsd": 28,
+        "annualIncomeUsd": 25000,
+        "dependants": 2,
+        "webankLoanBalanceUsd": 63000
+      },
+      "concern": {
+        "primary": "DEBT",
+        "needVector": {
+          "MED": 0.129,
+          "INC": 0.193,
+          "ACC": 0.129,
+          "DEBT": 0.55
+        },
+        "extracted": {
+          "keywords": []
+        },
+        "source": "rules"
+      },
+      "products": [
+        {
+          "productId": "WELIFE_DEBT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 63000,
+          "sumAssuredNeedUsd": 63000,
+          "monthlyPremiumUsd": 22,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "EXCL_SUICIDE_1Y",
+              "description": "Suicide excluded in year 1"
+            }
+          ],
+          "fitScore": 100,
+          "subScores": {
+            "R": 1,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_HIGH_DEBT",
+            "U_STANDARD",
+            "EXCL_SUICIDE_1Y",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Matches your main concern; WeLife Debt Shield covers up to $63,000. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": true
+        },
+        {
+          "productId": "WEPROTECT_CI",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 56000,
+          "sumAssuredNeedUsd": 75000,
+          "monthlyPremiumUsd": 28,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 90,
+          "conditions": [
+            {
+              "code": "WAITING_90D",
+              "description": "90-day waiting period"
+            }
+          ],
+          "fitScore": 60,
+          "subScores": {
+            "R": 0.37,
+            "A": 1,
+            "U": 1,
+            "V": 0.75,
+            "E": 1
+          },
+          "reasonCodes": [
+            "U_STANDARD",
+            "WAITING_90D",
+            "A_WITHIN_BUDGET",
+            "V_CAPPED"
+          ],
+          "explanation": "You qualify at the standard rate. Cover is capped at $56,000 by product limits.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WESAFE_ACCIDENT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 4,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "COVER_DAY_ONE",
+              "description": "Covered from day one, no health check"
+            }
+          ],
+          "fitScore": 44,
+          "subScores": {
+            "R": 0.06,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "COVER_DAY_ONE",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WECARE_HEALTH",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 70000,
+          "sumAssuredNeedUsd": 70000,
+          "monthlyPremiumUsd": 18,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 30,
+          "conditions": [
+            {
+              "code": "EXCL_PRE_EXISTING",
+              "description": "Pre-existing conditions are not covered"
+            },
+            {
+              "code": "MIN_PREMIUM_APPLIED",
+              "description": "Minimum premium of $18/month applied"
+            }
+          ],
+          "fitScore": 40,
+          "subScores": {
+            "R": 0,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "EXCL_PRE_EXISTING",
+            "MIN_PREMIUM_APPLIED",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        }
+      ]
+    }
+  }
+}

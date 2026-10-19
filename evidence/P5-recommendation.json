@@ -1,0 +1,193 @@
+{
+  "request": {
+    "gender": "female",
+    "age": 52,
+    "occupation": "desk",
+    "health": "major_surgery",
+    "smoker": false,
+    "concern": "MED",
+    "monthlyBudgetUsd": 17
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+      "rulebookVersion": "rulebook-2026.10-v0.2",
+      "createdAt": "2026-10-19T07:06:07.056Z",
+      "profile": {
+        "gender": "female",
+        "age": 52,
+        "occupation": "desk",
+        "health": "major_surgery",
+        "smoker": false,
+        "concern": "MED",
+        "monthlyBudgetUsd": 17
+      },
+      "concern": {
+        "primary": "MED",
+        "needVector": {
+          "MED": 0.55,
+          "INC": 0.15,
+          "ACC": 0.15,
+          "DEBT": 0.15
+        },
+        "extracted": {
+          "keywords": []
+        },
+        "source": "rules"
+      },
+      "products": [
+        {
+          "productId": "WESAFE_ACCIDENT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 4,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "COVER_DAY_ONE",
+              "description": "Covered from day one, no health check"
+            }
+          ],
+          "fitScore": 59,
+          "subScores": {
+            "R": 0.31,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "U_STANDARD",
+            "COVER_DAY_ONE",
+            "A_WITHIN_BUDGET",
+            "REC_BEST_AFFORDABLE"
+          ],
+          "explanation": "You qualify at the standard rate. This is the best match that fits your budget; options that match your main concern more closely are outside your budget limit.",
+          "overBudget": false,
+          "recommended": true
+        },
+        {
+          "productId": "WECARE_HEALTH",
+          "eligibility": "CONDITIONAL",
+          "sumAssuredUsd": 141000,
+          "sumAssuredNeedUsd": 141000,
+          "monthlyPremiumUsd": 33,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 30,
+          "conditions": [
+            {
+              "code": "EXCL_PRE_EXISTING",
+              "description": "Pre-existing conditions are not covered"
+            },
+            {
+              "code": "EXCL_PRIOR_SURGERY",
+              "description": "Conditions related to prior surgery are excluded"
+            }
+          ],
+          "fitScore": 44,
+          "subScores": {
+            "R": 1,
+            "A": 0,
+            "U": 0.85,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_HIGH_MED",
+            "U_CONDITIONAL",
+            "EXCL_PRE_EXISTING",
+            "EXCL_PRIOR_SURGERY",
+            "A_OVER_BUDGET",
+            "A_OVER_BUDGET_SCALED"
+          ],
+          "explanation": "Matches your main concern; WeCare Health+ covers up to $141,000. Conditions apply: Conditions related to prior surgery are excluded. Estimated $33/month is above your $17 budget. The match score was reduced because the premium exceeds your budget limit of $19/month.",
+          "overBudget": true,
+          "recommended": false
+        },
+        {
+          "productId": "WELIFE_DEBT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 15,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "EXCL_SUICIDE_1Y",
+              "description": "Suicide excluded in year 1"
+            }
+          ],
+          "fitScore": 40,
+          "subScores": {
+            "R": 0,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "EXCL_SUICIDE_1Y",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WEPROTECT_CI",
+          "eligibility": "REFERRED",
+          "sumAssuredUsd": 51000,
+          "sumAssuredNeedUsd": 51000,
+          "monthlyPremiumUsd": 41,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 90,
+          "conditions": [
+            {
+              "code": "WAITING_90D",
+              "description": "90-day waiting period"
+            }
+          ],
+          "fitScore": 11,
+          "subScores": {
+            "R": 0.48,
+            "A": 0,
+            "U": 1,
+            "V": 1,
+            "E": 0.5
+          },
+          "reasonCodes": [
+            "U_REFERRED",
+            "WAITING_90D",
+            "A_OVER_BUDGET",
+            "A_OVER_BUDGET_SCALED"
+          ],
+          "explanation": "Needs review by an underwriter before issue. Estimated $41/month is above your $17 budget. The match score was reduced because the premium exceeds your budget limit of $19/month.",
+          "overBudget": true,
+          "recommended": false
+        }
+      ]
+    }
+  }
+}
