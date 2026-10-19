@@ -6,3 +6,4 @@ logs/*.jsonl
 .claude/settings.json
 server/data/*.json
 server/logs/*.jsonl
+server/logs/*.bak
