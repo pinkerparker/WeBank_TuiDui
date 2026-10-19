@@ -9,9 +9,26 @@ The pipeline is auditable end-to-end: every recommendation and binding is
 written to a hash-chained JSONL ledger that the application can verify and
 that refuses to start on tamper.
 
-The system is built as a 4-person team submission for the WeBank FinTechathon
-2026 competition. The repository is public at
+The repository is public at
 [pinkerparker/WeBank_TuiDui](https://github.com/pinkerparker/WeBank_TuiDui).
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/pinkerparker/WeBank_TuiDui.git
+cd WeBank_TuiDui
+npm ci
+echo "GEMINI_API_KEY=your-key" > server/.env
+npm run dev:server &   # API at http://localhost:4000
+npm run dev:web        # SPA at http://localhost:5173
+```
+
+Open <http://localhost:5173>, complete the consent flow, and run a
+recommendation. The full walkthrough — including verification, all
+environment variables, and the audit-trail inspection — is in
+[Local setup](#local-setup).
 
 ---
 
@@ -186,6 +203,9 @@ handler → engine → in-process store → atomic file write`.
 
 ## Team and ownership
 
+Built as a 4-person submission for the WeBank FinTechathon 2026
+competition.
+
 | Person | Area | Owned directories |
 | --- | --- | --- |
 | **A — Pornchanok Phuaktao** | Frontend | `frontend/` |
@@ -358,7 +378,7 @@ Manual end-to-end check (with `npm run dev:server` running):
 
 ```bash
 curl http://localhost:4000/healthz
-# {"status":"ok","uptime":<seconds>,"rulebookVersion":"rulebook-2026.10-v0.2"}
+# {"status":"ok","uptime":3600,"rulebookVersion":"rulebook-2026.10-v0.2"}
 
 curl -X POST http://localhost:4000/api/v1/recommendations \
   -H 'Content-Type: application/json' \
@@ -414,16 +434,42 @@ All endpoints return JSON. The five backend routes:
 
 ### `GET /api/v1/catalog`
 
-Returns the static product catalog.
+Returns the static product catalog. One full entry, then the other
+three abridged:
 
 ```json
 {
-  "WECARE_HEALTH":  { "name": "...", "sumAssuredMinUsd": ..., "sumAssuredMaxUsd": ..., "priceMinUsd": ..., "priceMaxUsd": ..., "statutoryConditions": [...], "statutoryWaitingDays": ..., "benefitProfile": { "MED": ..., "INC": ..., "ACC": ..., "DEBT": ... } },
-  "WEPROTECT_CI":   { ... },
-  "WESAFE_ACCIDENT":{ ... },
-  "WELIFE_DEBT":    { ... }
+  "WECARE_HEALTH": {
+    "id": "WECARE_HEALTH",
+    "name": "WeCare Health+",
+    "type": "Lump-sum health (IPD & Day Surgery)",
+    "concern": "MED",
+    "sumAssuredMinUsd": 28000,
+    "sumAssuredMaxUsd": 141000,
+    "priceMinUsd": 18,
+    "priceMaxUsd": 62,
+    "statutoryWaitingDays": 30,
+    "statutoryConditions": [
+      { "code": "EXCL_PRE_EXISTING", "description": "Pre-existing conditions are not covered" }
+    ],
+    "benefitProfile": { "MED": 1, "INC": 0.2, "ACC": 0.4, "DEBT": 0 }
+  },
+  "WEPROTECT_CI":    { "id": "WEPROTECT_CI",    "name": "WeProtect CI",     "concern": "INC",  "sumAssuredMinUsd": 14000, "sumAssuredMaxUsd": 56000, "priceMinUsd": 10, "priceMaxUsd": 42 },
+  "WESAFE_ACCIDENT": { "id": "WESAFE_ACCIDENT", "name": "WeSafe Accident",  "concern": "ACC",  "sumAssuredMinUsd":  7000, "sumAssuredMaxUsd": 28000, "priceMinUsd":  4, "priceMaxUsd": 13 },
+  "WELIFE_DEBT":     { "id": "WELIFE_DEBT",     "name": "WeLife Debt Shield","concern": "DEBT","sumAssuredMinUsd": 28000, "sumAssuredMaxUsd": 85000, "priceMinUsd":  7, "priceMaxUsd": 25 }
 }
 ```
+
+Field meanings:
+
+- `sumAssured*Usd` and `price*Usd` are USD bounds. Engine 2 sizes the
+  cover to the nearest $1,000; Engine 3 caps premiums against
+  `priceMaxUsd` and flags quotes above it.
+- `benefitProfile` is the per-concern weight vector that Engine 3 uses
+  to compute the **R** (relevance) sub-score.
+- `statutoryConditions` and `statutoryWaitingDays` are the base
+  conditions every customer gets. Engine 2 adds per-profile conditions
+  (e.g. `LOAD_SMOKER`, `WAITING_120D`).
 
 ### `POST /api/v1/recommendations`
 
@@ -473,16 +519,17 @@ Request body (validated by `bindSchema`):
 
 ```json
 {
-  "sessionId": "<from /recommendations>",
+  "sessionId": "a1b2c3d4-e5f6-4abc-8def-1234567890ab",
   "productId": "WECARE_HEALTH",
-  "consentId": "<from the consent step>",
+  "consentId": "consent-001",
   "idempotencyKey": "any-string-of-8-or-more-chars"
 }
 ```
 
-The `sessionId` must come from a prior `/api/v1/recommendations` call;
-the `consentId` must come from the frontend's PIPL 3-step consent flow.
-Both must be completed before this endpoint is called.
+`sessionId` is the UUID returned by `/api/v1/recommendations` (or a
+`sbx-…` value in the sandbox runner). `consentId` is the identifier
+issued by the frontend's PIPL 3-step consent flow. Both must be
+completed before this endpoint is called.
 
 Response: a `BindResult`.
 
@@ -505,22 +552,46 @@ Idempotency contract:
 
 ### `GET /api/v1/audit/:sessionId`
 
-Returns the session's audit entries and the current chain-validity flag:
+Returns the session's audit entries and the current chain-validity flag.
+Each entry's `prevHash` and `hash` are 64-char SHA-256 hex strings; the
+first entry's `prevHash` is the all-zeros genesis. The example below is
+illustrative — the `prevHash`/`hash` values, `sessionId`, `consentId`,
+and timestamps are example placeholders, **not** real values from a
+running server:
 
 ```json
 {
   "chainValid": true,
   "entries": [
-    { "seq": 1, "timestamp": "...", "sessionId": "...", "event": "SESSION_START", "payload": {...}, "prevHash": "0000...", "hash": "abcd..." },
-    { "seq": 2, "timestamp": "...", "sessionId": "...", "event": "CONCERN_TRANSLATED", "payload": {...}, "prevHash": "abcd...", "hash": "..." }
+    {
+      "seq": 1,
+      "timestamp": "2026-10-19T07:10:28.123Z",
+      "sessionId": "a1b2c3d4-e5f6-4abc-8def-1234567890ab",
+      "event": "SESSION_START",
+      "payload": {
+        "snapshot": { "consentId": "consent-001", "locale": "en", "channel": "web" },
+        "rulebookVersion": "rulebook-2026.10-v0.2"
+      },
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash":     "5a7c1b2d9e3f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f1a2b"
+    },
+    {
+      "seq": 2,
+      "timestamp": "2026-10-19T07:10:28.456Z",
+      "sessionId": "a1b2c3d4-e5f6-4abc-8def-1234567890ab",
+      "event": "CONCERN_TRANSLATED",
+      "payload": { "primary": "MED", "needVector": { "MED": 1, "INC": 0, "ACC": 0, "DEBT": 0 }, "extracted": { "keywords": ["hospital"] }, "source": "rules" },
+      "prevHash": "5a7c1b2d9e3f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f1a2b",
+      "hash":     "9c4d2e6f8a0b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d"
+    }
   ]
 }
 ```
 
-`chainValid` is `false` if the on-disk log has been tampered with
-(mismatched `prevHash` or `hash`). The application refuses to start in
-that state, so a `false` here would indicate an in-memory vs on-disk
-mismatch from a torn write.
+`chainValid` is `false` only if the on-disk log has been tampered with
+(mismatched `prevHash` or `hash`). The application refuses to start
+in that state, so a `false` here would indicate an in-memory vs
+on-disk mismatch from a torn write that hydrate caught on next boot.
 
 ### `GET /api/v1/sessions/:sessionId`
 
@@ -533,7 +604,7 @@ after a page reload.
 Liveness check. Returns:
 
 ```json
-{ "status": "ok", "uptime": <seconds>, "rulebookVersion": "rulebook-2026.10-v0.2" }
+{ "status": "ok", "uptime": 3600, "rulebookVersion": "rulebook-2026.10-v0.2" }
 ```
 
 ---
