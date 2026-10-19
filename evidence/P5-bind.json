@@ -1,0 +1,18 @@
+{
+  "request": {
+    "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+    "productId": "WESAFE_ACCIDENT",
+    "consentId": "consent-evidence-P5",
+    "idempotencyKey": "idem-evidence-P5-1792393567059"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "ISSUED",
+      "policyNumber": "WB-SBX-F3CD6A8B",
+      "productId": "WESAFE_ACCIDENT",
+      "monthlyPremiumUsd": 4,
+      "debitReference": "DD-SBX-F3CD6A8B"
+    }
+  }
+}

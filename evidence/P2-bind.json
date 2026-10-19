@@ -1,0 +1,18 @@
+{
+  "request": {
+    "sessionId": "894f97dc-f272-4b8e-88b7-43af81bcb254",
+    "productId": "WESAFE_ACCIDENT",
+    "consentId": "consent-evidence-P2",
+    "idempotencyKey": "idem-evidence-P2-1792393566958"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "ISSUED",
+      "policyNumber": "WB-SBX-FB4365CD",
+      "productId": "WESAFE_ACCIDENT",
+      "monthlyPremiumUsd": 4,
+      "debitReference": "DD-SBX-FB4365CD"
+    }
+  }
+}

@@ -1,0 +1,248 @@
+{
+  "status": 200,
+  "body": {
+    "chainValid": true,
+    "entries": [
+      {
+        "seq": 25,
+        "timestamp": "2026-10-19T07:06:07.049Z",
+        "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+        "event": "SESSION_START",
+        "payload": {
+          "snapshot": {
+            "gender": "female",
+            "ageBand": "50-59",
+            "occupation": "desk",
+            "concern": "MED",
+            "concernTextSuppressed": null
+          },
+          "rulebookVersion": "rulebook-2026.10-v0.2"
+        },
+        "prevHash": "7300ced6d2b4c50d0ca8170da33358a5f28c882fd0c9ce3a39462c7e3e2f4908",
+        "hash": "4e0908f77ff019f0c9d144513ca881f29454239367a024727a12a16af5fe7591"
+      },
+      {
+        "seq": 26,
+        "timestamp": "2026-10-19T07:06:07.051Z",
+        "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+        "event": "CONCERN_TRANSLATED",
+        "payload": {
+          "primary": "MED",
+          "needVector": {
+            "MED": 0.55,
+            "INC": 0.15,
+            "ACC": 0.15,
+            "DEBT": 0.15
+          },
+          "extracted": {
+            "keywords": []
+          },
+          "source": "rules"
+        },
+        "prevHash": "4e0908f77ff019f0c9d144513ca881f29454239367a024727a12a16af5fe7591",
+        "hash": "d787760d493072ca4a167c6fc3a706065d9ad4fd00f677bbaa90fb08e49e90dd"
+      },
+      {
+        "seq": 27,
+        "timestamp": "2026-10-19T07:06:07.052Z",
+        "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+        "event": "UNDERWRITING_DONE",
+        "payload": [
+          {
+            "productId": "WECARE_HEALTH",
+            "eligibility": "CONDITIONAL",
+            "sumAssuredUsd": 141000,
+            "sumAssuredNeedUsd": 141000,
+            "monthlyPremiumUsd": 33,
+            "loadings": {
+              "occupation": 0,
+              "smoker": 0,
+              "health": 0
+            },
+            "waitingPeriodDays": 30,
+            "conditions": [
+              {
+                "code": "EXCL_PRE_EXISTING",
+                "description": "Pre-existing conditions are not covered"
+              },
+              {
+                "code": "EXCL_PRIOR_SURGERY",
+                "description": "Conditions related to prior surgery are excluded"
+              }
+            ]
+          },
+          {
+            "productId": "WEPROTECT_CI",
+            "eligibility": "REFERRED",
+            "sumAssuredUsd": 51000,
+            "sumAssuredNeedUsd": 51000,
+            "monthlyPremiumUsd": 41,
+            "loadings": {
+              "occupation": 0,
+              "smoker": 0,
+              "health": 0
+            },
+            "waitingPeriodDays": 90,
+            "conditions": [
+              {
+                "code": "WAITING_90D",
+                "description": "90-day waiting period"
+              }
+            ]
+          },
+          {
+            "productId": "WESAFE_ACCIDENT",
+            "eligibility": "STANDARD",
+            "sumAssuredUsd": 28000,
+            "sumAssuredNeedUsd": 28000,
+            "monthlyPremiumUsd": 4,
+            "loadings": {
+              "occupation": 0,
+              "smoker": 0,
+              "health": 0
+            },
+            "waitingPeriodDays": 0,
+            "conditions": [
+              {
+                "code": "COVER_DAY_ONE",
+                "description": "Covered from day one, no health check"
+              }
+            ]
+          },
+          {
+            "productId": "WELIFE_DEBT",
+            "eligibility": "STANDARD",
+            "sumAssuredUsd": 28000,
+            "sumAssuredNeedUsd": 28000,
+            "monthlyPremiumUsd": 15,
+            "loadings": {
+              "occupation": 0,
+              "smoker": 0,
+              "health": 0
+            },
+            "waitingPeriodDays": 0,
+            "conditions": [
+              {
+                "code": "EXCL_SUICIDE_1Y",
+                "description": "Suicide excluded in year 1"
+              }
+            ]
+          }
+        ],
+        "prevHash": "d787760d493072ca4a167c6fc3a706065d9ad4fd00f677bbaa90fb08e49e90dd",
+        "hash": "dbf7d1d469d00da98ad654beccd9c76e53a796a0dc79d046f4dda3a2e36969ee"
+      },
+      {
+        "seq": 28,
+        "timestamp": "2026-10-19T07:06:07.054Z",
+        "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+        "event": "SCORED",
+        "payload": [
+          {
+            "productId": "WESAFE_ACCIDENT",
+            "fitScore": 59,
+            "subScores": {
+              "R": 0.31,
+              "A": 1,
+              "U": 1,
+              "V": 1,
+              "E": 1
+            },
+            "reasonCodes": [
+              "U_STANDARD",
+              "COVER_DAY_ONE",
+              "A_WITHIN_BUDGET",
+              "REC_BEST_AFFORDABLE"
+            ],
+            "recommended": true
+          },
+          {
+            "productId": "WECARE_HEALTH",
+            "fitScore": 44,
+            "subScores": {
+              "R": 1,
+              "A": 0,
+              "U": 0.85,
+              "V": 1,
+              "E": 1
+            },
+            "reasonCodes": [
+              "R_HIGH_MED",
+              "U_CONDITIONAL",
+              "EXCL_PRE_EXISTING",
+              "EXCL_PRIOR_SURGERY",
+              "A_OVER_BUDGET",
+              "A_OVER_BUDGET_SCALED"
+            ],
+            "recommended": false
+          },
+          {
+            "productId": "WELIFE_DEBT",
+            "fitScore": 40,
+            "subScores": {
+              "R": 0,
+              "A": 1,
+              "U": 1,
+              "V": 1,
+              "E": 1
+            },
+            "reasonCodes": [
+              "R_LOW",
+              "U_STANDARD",
+              "EXCL_SUICIDE_1Y",
+              "A_WITHIN_BUDGET"
+            ],
+            "recommended": false
+          },
+          {
+            "productId": "WEPROTECT_CI",
+            "fitScore": 11,
+            "subScores": {
+              "R": 0.48,
+              "A": 0,
+              "U": 1,
+              "V": 1,
+              "E": 0.5
+            },
+            "reasonCodes": [
+              "U_REFERRED",
+              "WAITING_90D",
+              "A_OVER_BUDGET",
+              "A_OVER_BUDGET_SCALED"
+            ],
+            "recommended": false
+          }
+        ],
+        "prevHash": "dbf7d1d469d00da98ad654beccd9c76e53a796a0dc79d046f4dda3a2e36969ee",
+        "hash": "e3758e670b78b3983a576002c3dbcc9eb506ee2882fde3d90a8965f053113c00"
+      },
+      {
+        "seq": 29,
+        "timestamp": "2026-10-19T07:06:07.062Z",
+        "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+        "event": "BIND_REQUESTED",
+        "payload": {
+          "productId": "WESAFE_ACCIDENT",
+          "consentId": "consent-evidence-P5"
+        },
+        "prevHash": "e3758e670b78b3983a576002c3dbcc9eb506ee2882fde3d90a8965f053113c00",
+        "hash": "229c14b4e2079fa5b05c3632a84840a96f41e66330047ff6bf599333d14fed7e"
+      },
+      {
+        "seq": 30,
+        "timestamp": "2026-10-19T07:06:07.067Z",
+        "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+        "event": "POLICY_ISSUED",
+        "payload": {
+          "status": "ISSUED",
+          "policyNumber": "WB-SBX-F3CD6A8B",
+          "productId": "WESAFE_ACCIDENT",
+          "monthlyPremiumUsd": 4,
+          "debitReference": "DD-SBX-F3CD6A8B"
+        },
+        "prevHash": "229c14b4e2079fa5b05c3632a84840a96f41e66330047ff6bf599333d14fed7e",
+        "hash": "85c895e5948641aea576e86766701696d788dc90d62123b00200ee57ff83f1f7"
+      }
+    ]
+  }
+}

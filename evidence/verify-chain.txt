@@ -1,0 +1,3 @@
+verifyChain() result (via GET /api/v1/audit/:sessionId, field "chainValid"): true
+The audit log is a single global hash chain shared across all sessions, so this value — read after any of the 5 persona runs below — reflects the validity of the ENTIRE chain, not just one session.
+Per-call chainValid values: [true,true,true,true,true]

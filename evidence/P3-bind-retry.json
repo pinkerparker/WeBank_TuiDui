@@ -1,0 +1,18 @@
+{
+  "request": {
+    "sessionId": "ad88e676-f886-4e02-9915-4951ff78345b",
+    "productId": "WELIFE_DEBT",
+    "consentId": "consent-evidence-P3",
+    "idempotencyKey": "idem-evidence-P3-1792393566996"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "ISSUED",
+      "policyNumber": "WB-SBX-F2EF4E2B",
+      "productId": "WELIFE_DEBT",
+      "monthlyPremiumUsd": 22,
+      "debitReference": "DD-SBX-F2EF4E2B"
+    }
+  }
+}

@@ -1,0 +1,2 @@
+[original (untouched copy)] hydrate() OK — 30 entries loaded, verify()=true
+[tampered (monthlyPremiumUsd 20->2 on P1 POLICY_ISSUED)] hydrate() REJECTED — AuditLogCorrupt: AuditLogCorrupt: C:\Users\nateb\Desktop\WeBank\WeBank_TuiDui\evidence\tamper\audit-tampered.jsonl: line 6 hash mismatch — original file preserved

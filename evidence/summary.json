@@ -1,0 +1,67 @@
+[
+  {
+    "persona": "P1",
+    "label": "Office worker, hospital-cost concern (prototype)",
+    "sessionId": "6e87e284-884b-4f38-9776-a0678a15914a",
+    "topProduct": "WECARE_HEALTH",
+    "fitScore": 100,
+    "premiumUsd": 20,
+    "bindStatus": "ISSUED",
+    "policyNumber": "WB-SBX-8DB7E2F1",
+    "retryMatchesOriginal": true,
+    "auditEntries": 6,
+    "chainValid": true
+  },
+  {
+    "persona": "P2",
+    "label": "Technician, smoker, hypertension, accident concern",
+    "sessionId": "894f97dc-f272-4b8e-88b7-43af81bcb254",
+    "topProduct": "WESAFE_ACCIDENT",
+    "fitScore": 95,
+    "premiumUsd": 4,
+    "bindStatus": "ISSUED",
+    "policyNumber": "WB-SBX-FB4365CD",
+    "retryMatchesOriginal": true,
+    "auditEntries": 6,
+    "chainValid": true
+  },
+  {
+    "persona": "P3",
+    "label": "Parent with WeBank home loan, debt concern",
+    "sessionId": "ad88e676-f886-4e02-9915-4951ff78345b",
+    "topProduct": "WELIFE_DEBT",
+    "fitScore": 100,
+    "premiumUsd": 22,
+    "bindStatus": "ISSUED",
+    "policyNumber": "WB-SBX-F2EF4E2B",
+    "retryMatchesOriginal": true,
+    "auditEntries": 6,
+    "chainValid": true
+  },
+  {
+    "persona": "P4",
+    "label": "Field sales, income-loss concern, free text",
+    "sessionId": "4e2b4937-a910-4cd5-96d7-c6f9d820a624",
+    "topProduct": "WEPROTECT_CI",
+    "fitScore": 99,
+    "premiumUsd": 35,
+    "bindStatus": "ISSUED",
+    "policyNumber": "WB-SBX-0CB54AC4",
+    "retryMatchesOriginal": true,
+    "auditEntries": 6,
+    "chainValid": true
+  },
+  {
+    "persona": "P5",
+    "label": "Past major surgery, tight budget",
+    "sessionId": "2d6aab10-ee1b-4679-8a98-68d255c6fe9f",
+    "topProduct": "WESAFE_ACCIDENT",
+    "fitScore": 59,
+    "premiumUsd": 4,
+    "bindStatus": "ISSUED",
+    "policyNumber": "WB-SBX-F3CD6A8B",
+    "retryMatchesOriginal": true,
+    "auditEntries": 6,
+    "chainValid": true
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "request": {
+    "sessionId": "6e87e284-884b-4f38-9776-a0678a15914a",
+    "productId": "WECARE_HEALTH",
+    "consentId": "consent-evidence-P1",
+    "idempotencyKey": "idem-evidence-P1-1792393566895"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "ISSUED",
+      "policyNumber": "WB-SBX-8DB7E2F1",
+      "productId": "WECARE_HEALTH",
+      "monthlyPremiumUsd": 20,
+      "debitReference": "DD-SBX-8DB7E2F1"
+    }
+  }
+}

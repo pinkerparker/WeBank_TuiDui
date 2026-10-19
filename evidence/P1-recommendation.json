@@ -1,0 +1,185 @@
+{
+  "request": {
+    "gender": "female",
+    "age": 28,
+    "occupation": "desk",
+    "health": "normal",
+    "smoker": false,
+    "concern": "MED",
+    "monthlyBudgetUsd": 34
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "sessionId": "6e87e284-884b-4f38-9776-a0678a15914a",
+      "rulebookVersion": "rulebook-2026.10-v0.2",
+      "createdAt": "2026-10-19T07:06:06.874Z",
+      "profile": {
+        "gender": "female",
+        "age": 28,
+        "occupation": "desk",
+        "health": "normal",
+        "smoker": false,
+        "concern": "MED",
+        "monthlyBudgetUsd": 34
+      },
+      "concern": {
+        "primary": "MED",
+        "needVector": {
+          "MED": 0.55,
+          "INC": 0.15,
+          "ACC": 0.15,
+          "DEBT": 0.15
+        },
+        "extracted": {
+          "keywords": []
+        },
+        "source": "rules"
+      },
+      "products": [
+        {
+          "productId": "WECARE_HEALTH",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 141000,
+          "sumAssuredNeedUsd": 141000,
+          "monthlyPremiumUsd": 20,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 30,
+          "conditions": [
+            {
+              "code": "EXCL_PRE_EXISTING",
+              "description": "Pre-existing conditions are not covered"
+            }
+          ],
+          "fitScore": 100,
+          "subScores": {
+            "R": 1,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_HIGH_MED",
+            "U_STANDARD",
+            "EXCL_PRE_EXISTING",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Matches your main concern; WeCare Health+ covers up to $141,000. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": true
+        },
+        {
+          "productId": "WEPROTECT_CI",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 51000,
+          "sumAssuredNeedUsd": 51000,
+          "monthlyPremiumUsd": 18,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 90,
+          "conditions": [
+            {
+              "code": "WAITING_90D",
+              "description": "90-day waiting period"
+            }
+          ],
+          "fitScore": 69,
+          "subScores": {
+            "R": 0.48,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "U_STANDARD",
+            "WAITING_90D",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WESAFE_ACCIDENT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 4,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "COVER_DAY_ONE",
+              "description": "Covered from day one, no health check"
+            }
+          ],
+          "fitScore": 59,
+          "subScores": {
+            "R": 0.31,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "U_STANDARD",
+            "COVER_DAY_ONE",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WELIFE_DEBT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 8,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "EXCL_SUICIDE_1Y",
+              "description": "Suicide excluded in year 1"
+            }
+          ],
+          "fitScore": 40,
+          "subScores": {
+            "R": 0,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "EXCL_SUICIDE_1Y",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        }
+      ]
+    }
+  }
+}

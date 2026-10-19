@@ -1,0 +1,199 @@
+{
+  "request": {
+    "gender": "female",
+    "age": 45,
+    "occupation": "field",
+    "health": "normal",
+    "smoker": false,
+    "concern": "INC",
+    "concernText": "担心生病不能工作，家里没有收入",
+    "monthlyBudgetUsd": 49,
+    "dependants": 1,
+    "annualIncomeUsd": 21000
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "sessionId": "4e2b4937-a910-4cd5-96d7-c6f9d820a624",
+      "rulebookVersion": "rulebook-2026.10-v0.2",
+      "createdAt": "2026-10-19T07:06:07.028Z",
+      "profile": {
+        "gender": "female",
+        "age": 45,
+        "occupation": "field",
+        "health": "normal",
+        "smoker": false,
+        "concern": "INC",
+        "concernText": "担心生病不能工作，家里没有收入",
+        "monthlyBudgetUsd": 49,
+        "annualIncomeUsd": 21000,
+        "dependants": 1
+      },
+      "concern": {
+        "primary": "INC",
+        "needVector": {
+          "MED": 0.129,
+          "INC": 0.55,
+          "ACC": 0.193,
+          "DEBT": 0.129
+        },
+        "extracted": {
+          "keywords": []
+        },
+        "source": "rules"
+      },
+      "products": [
+        {
+          "productId": "WEPROTECT_CI",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 56000,
+          "sumAssuredNeedUsd": 63000,
+          "monthlyPremiumUsd": 35,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 90,
+          "conditions": [
+            {
+              "code": "WAITING_90D",
+              "description": "90-day waiting period"
+            }
+          ],
+          "fitScore": 99,
+          "subScores": {
+            "R": 1,
+            "A": 1,
+            "U": 1,
+            "V": 0.89,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_HIGH_INC",
+            "U_STANDARD",
+            "WAITING_90D",
+            "A_WITHIN_BUDGET",
+            "V_CAPPED"
+          ],
+          "explanation": "Matches your main concern; WeProtect CI covers up to $56,000. You qualify at the standard rate. Cover is capped at $56,000 by product limits.",
+          "overBudget": false,
+          "recommended": true
+        },
+        {
+          "productId": "WECARE_HEALTH",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 70000,
+          "sumAssuredNeedUsd": 70000,
+          "monthlyPremiumUsd": 18,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 30,
+          "conditions": [
+            {
+              "code": "EXCL_PRE_EXISTING",
+              "description": "Pre-existing conditions are not covered"
+            },
+            {
+              "code": "MIN_PREMIUM_APPLIED",
+              "description": "Minimum premium of $18/month applied"
+            }
+          ],
+          "fitScore": 43,
+          "subScores": {
+            "R": 0.05,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "EXCL_PRE_EXISTING",
+            "MIN_PREMIUM_APPLIED",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WELIFE_DEBT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 11,
+          "loadings": {
+            "occupation": 0,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "EXCL_SUICIDE_1Y",
+              "description": "Suicide excluded in year 1"
+            }
+          ],
+          "fitScore": 42,
+          "subScores": {
+            "R": 0.04,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "EXCL_SUICIDE_1Y",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        },
+        {
+          "productId": "WESAFE_ACCIDENT",
+          "eligibility": "STANDARD",
+          "sumAssuredUsd": 28000,
+          "sumAssuredNeedUsd": 28000,
+          "monthlyPremiumUsd": 5,
+          "loadings": {
+            "occupation": 0.2,
+            "smoker": 0,
+            "health": 0
+          },
+          "waitingPeriodDays": 0,
+          "conditions": [
+            {
+              "code": "COVER_DAY_ONE",
+              "description": "Covered from day one, no health check"
+            }
+          ],
+          "fitScore": 40,
+          "subScores": {
+            "R": 0,
+            "A": 1,
+            "U": 1,
+            "V": 1,
+            "E": 1
+          },
+          "reasonCodes": [
+            "R_LOW",
+            "U_STANDARD",
+            "COVER_DAY_ONE",
+            "A_WITHIN_BUDGET"
+          ],
+          "explanation": "Only loosely related to your main concern. You qualify at the standard rate.",
+          "overBudget": false,
+          "recommended": false
+        }
+      ]
+    }
+  }
+}
