@@ -9,6 +9,11 @@ export const T = {
   subtitle: 'Answer a few questions. Your matches update instantly.',
 
   aboutYou: 'About you',
+  // Public demo banner — visible above the profile form so judges
+  // and visitors see, before typing sensitive details, that the
+  // health, financial and contact fields accept synthetic data only.
+  // Audit also keeps no PII; see the audit trail for the rule.
+  demoBanner: 'Public demo — please use synthetic data only. Nothing here is a real application, and any details you enter are kept only for this session.',
   gender: 'Gender', female: 'Female', male: 'Male',
   age: 'Age', years: 'years',
   occupation: 'Occupation',

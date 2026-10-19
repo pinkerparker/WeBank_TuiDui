@@ -147,6 +147,16 @@ button, input, textarea { font: inherit; }
 .notice { font-size: 14px; font-weight: 600; }
 .notice.ok { color: var(--success); }
 .notice.err { color: var(--danger); }
+/* Public-demo notice — yellow warning tint so it reads as "important
+   but not destructive", and a thick left border so it survives busy
+   page chrome. Sits above the profile form so judges see it before
+   typing any health or financial details. */
+.demo-banner {
+  background: var(--warning-tint); color: var(--warning);
+  border-left: 3px solid var(--warning);
+  padding: 10px 14px; margin: -4px -4px 4px -4px;
+  font-size: 13px; font-weight: 500; line-height: 1.4;
+}
 
 /* Plan list */
 .plans { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
