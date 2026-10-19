@@ -25,6 +25,11 @@ process.env.AUDIT_LOG = `${base}/audit.jsonl`;
 process.env.SESSIONS_FILE = `${base}/sessions.json`;
 process.env.ISSUED_FILE = `${base}/issued.json`;
 process.env.DATA_DIR = base;
+// Default rate limit high enough that existing contract / persistence
+// tests (which fire many sequential requests from 127.0.0.1 without
+// setting X-Forwarded-For) never trip it. Security tests override
+// this in beforeEach to exercise the limit.
+process.env.RATE_LIMIT_PER_MINUTE = '10000';
 
 // Re-export the base so tests can wipe the dir between cases.
 export const TEST_DATA_DIR = base;

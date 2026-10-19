@@ -108,6 +108,7 @@ export default function App() {
 
         <section className="card form-card" aria-labelledby="about-you">
           <h2 id="about-you">{T.aboutYou}</h2>
+          <p className="demo-banner" role="note" aria-label={T.demoBanner}>{T.demoBanner}</p>
           <ProfileForm value={draft} onChange={setDraft} details={details} onDetails={setDetails} complete={profile !== null}
             understood={rec && !loading && rec.profile.concernText === draft.concernText ? rec.concern : null} />
         </section>
